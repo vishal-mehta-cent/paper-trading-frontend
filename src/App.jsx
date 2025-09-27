@@ -38,6 +38,7 @@ import Funds from "./pages/Funds";
 import History from "./pages/History";
 import ModifyOrderPage from "./pages/ModifyOrderPage";
 import ProfileDetail from "./pages/ProfileDetail";
+import Payments from "./pages/Payments.jsx";
 
 /** Fixed logo shown on every non-auth page (rendered to body via portal) */
 function RouteAwareTopRightLogo() {
@@ -238,11 +239,17 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           element={<Funds username={localStorage.getItem("username")} />}
         />
         <Route
+           path="/payments"
+           element={username ? <Payments /> : <Navigate to="/" replace />}
+        />
+
+        <Route
           path="/history"
           element={
             username ? <History username={username} /> : <Navigate to="/" replace />
           }
         />
+        {/* NEW: allow visiting /history/:username too (keeps existing behavior intact) */}
         <Route
           path="/history/:username"
           element={
@@ -262,11 +269,14 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           path="/profile/details" 
           element={<ProfileDetail />} 
         />
+        
         <Route
           path="/settings/change-email"
           element={username ? <EmailChange /> : <Navigate to="/" replace />}
         />
+        
 
+        {/* Keep specific route before wildcard */}
         <Route path="/modify/:id" element={<ModifyOrderPage />} />
 
         {/* Catch-all */}

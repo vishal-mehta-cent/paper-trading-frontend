@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "preinstall": "node -e \"if (process.platform !== 'win32') require('child_process').execSync('ls node_modules/.bin', { stdio: 'inherit' })\"",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@react-oauth/google": "^0.12.2",
+    "@stripe/react-stripe-js": "^4.0.2",
+    "@stripe/stripe-js": "^7.9.0",
     "axios": "^1.11.0",
     "chart.js": "^4.5.0",
     "chartjs-adapter-date-fns": "^3.0.0",
@@ -32,5 +33,8 @@
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
     "vite": "^7.1.7"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
