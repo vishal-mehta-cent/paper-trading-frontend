@@ -526,6 +526,8 @@ export default function Orders({ username }) {
 
               // BUY  : live - entry
               // SELL : entry - live
+              // BUY  : live - entry
+              // SELL : entry - live
               const perShare =
                 entryPrice && live ? (isBuy ? (live - entryPrice) : (entryPrice - live)) : 0;
 
