@@ -17,9 +17,9 @@ const money = (v) => {
   return n === null
     ? "—"
     : `₹${n.toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 };
 const intval = (v) => {
   const n = toNum(v);
@@ -29,8 +29,8 @@ const toNumOrNull = (v) =>
   v === null || v === undefined || v === ""
     ? null
     : Number.isFinite(Number(v))
-    ? Number(v)
-    : null;
+      ? Number(v)
+      : null;
 
 // Robust datetime utils (local timezone)
 const pickDateTime = (o) =>
@@ -45,19 +45,19 @@ const parseDate = (s) => {
 const fmtTime = (d) =>
   d
     ? d.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      })
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })
     : "—";
 const fmtDate = (d) =>
   d
     ? d.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      })
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
     : "—";
 
 const Chip = ({ label, value, tone = "gray" }) => {
@@ -65,8 +65,8 @@ const Chip = ({ label, value, tone = "gray" }) => {
     tone === "red"
       ? "bg-red-50 text-red-700 border-red-200"
       : tone === "green"
-      ? "bg-green-50 text-green-700 border-green-200"
-      : "bg-gray-50 text-gray-700 border-gray-200";
+        ? "bg-green-50 text-green-700 border-green-200"
+        : "bg-gray-50 text-gray-700 border-gray-200";
   return (
     <span className={`inline-flex items-center text-xs px-2 py-1 rounded-full border ${toneClass}`}>
       <span className="opacity-70 mr-1">{label}:</span>
@@ -80,11 +80,10 @@ const SegmentBadge = ({ segment }) => {
   const isIntra = seg === "intraday";
   return (
     <span
-      className={`inline-flex items-center px-2 py-[2px] rounded-full text-[11px] border ${
-        isIntra
-          ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-          : "bg-amber-50 text-amber-700 border-amber-200"
-      }`}
+      className={`inline-flex items-center px-2 py-[2px] rounded-full text-[11px] border ${isIntra
+        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+        : "bg-amber-50 text-amber-700 border-amber-200"
+        }`}
       title="Segment"
     >
       {isIntra ? "intraday" : "delivery"}
@@ -175,8 +174,8 @@ export default function Orders({ username }) {
     const ctrl1 = new AbortController();
     const ctrl2 = new AbortController();
     const timer = setTimeout(() => {
-      try { ctrl1.abort(); } catch {}
-      try { ctrl2.abort(); } catch {}
+      try { ctrl1.abort(); } catch { }
+      try { ctrl2.abort(); } catch { }
     }, 10000); // 10s timeout
 
     try {
@@ -277,7 +276,7 @@ export default function Orders({ username }) {
           });
           setQuotes(map);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     fetchQuotes();
@@ -431,11 +430,24 @@ export default function Orders({ username }) {
     const symbol = getSymbol(selectedOrder);
     setBusy(true);
     try {
-      const res = await fetch(`${API}/orders/positions/close`, {
+      const payload = {
+        username,
+        script,
+        order_type,
+        qty: Number(qty),
+        price: price ? Number(price) : 0,
+        stoploss: stoploss ? Number(stoploss) : 0,
+        target: target ? Number(target) : 0,
+        segment,
+        is_short,
+      };
+
+      const res = await fetch(`${API}/orders/place`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: who, script: symbol }),
+        body: JSON.stringify(payload),
       });
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Failed to close position");
       toast.success(data.message || `Closed ${symbol} ✅`);
@@ -462,9 +474,8 @@ export default function Orders({ username }) {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`pb-1 text-sm font-medium ${
-                tab === t ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 dark:text-gray-300"
-              }`}
+              className={`pb-1 text-sm font-medium ${tab === t ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 dark:text-gray-300"
+                }`}
             >
               {t === "open" ? "Open Trades" : "Positions"}
             </button>
@@ -529,7 +540,7 @@ export default function Orders({ username }) {
               const sl = toNum(o.stoploss);
               const tgt = toNum(o.target);
 
-              
+
 
               //const disabledRow = ((isSell && !o.short_first) || o.status === "Closed");
               const disabledRow = !!o.inactive;
@@ -537,11 +548,10 @@ export default function Orders({ username }) {
               return (
                 <div
                   key={o.id ?? `${script}-${dtRaw ?? ""}-${i}`}
-                  className={`p-4 rounded-xl shadow ${
-                    disabledRow
-                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                      : "bg-white dark:bg-gray-800 hover:shadow-md cursor-pointer"
-                  }`}
+                  className={`p-4 rounded-xl shadow ${disabledRow
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-white dark:bg-gray-800 hover:shadow-md cursor-pointer"
+                    }`}
                   onClick={() => {
                     if (disabledRow) return;
                     setSelectedOrder(o);

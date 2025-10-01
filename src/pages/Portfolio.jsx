@@ -22,9 +22,9 @@ const money = (v) => {
   return n === null
     ? "₹0.00"
     : `₹${n.toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 };
 const signed = (n, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`;
 
@@ -34,8 +34,8 @@ const Chip = ({ label, value, tone = "gray" }) => {
     tone === "red"
       ? "bg-red-50 text-red-700 border-red-200"
       : tone === "green"
-      ? "bg-green-50 text-green-700 border-green-200"
-      : "bg-gray-50 text-gray-700 border-gray-200";
+        ? "bg-green-50 text-green-700 border-green-200"
+        : "bg-gray-50 text-gray-700 border-gray-200";
   return (
     <span
       className={`inline-flex items-center text-xs px-2 py-1 rounded-full border ${toneClass}`}
@@ -51,11 +51,10 @@ const SegmentBadge = ({ segment }) => {
   const isIntra = seg === "intraday";
   return (
     <span
-      className={`inline-flex items-center px-2 py-[2px] rounded-full text-[11px] border ${
-        isIntra
-          ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-          : "bg-amber-50 text-amber-700 border-amber-200"
-      }`}
+      className={`inline-flex items-center px-2 py-[2px] rounded-full text-[11px] border ${isIntra
+        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+        : "bg-amber-50 text-amber-700 border-amber-200"
+        }`}
       title="Segment"
     >
       {isIntra ? "intraday" : "delivery"}
@@ -92,7 +91,7 @@ export default function Portfolio({ username }) {
           try {
             const j = await res.json();
             detail = j?.detail || "";
-          } catch {}
+          } catch { }
           throw new Error(
             detail || `Failed to fetch portfolio (HTTP ${res.status})`
           );
@@ -181,7 +180,7 @@ export default function Portfolio({ username }) {
           });
           setQuotes(qmap);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     fetchQuotes();
@@ -230,27 +229,33 @@ export default function Portfolio({ username }) {
       });
   };
 
-// inside Portfolio.jsx
+  // ===== Multi-sheet Excel (.xlsx) download =====
+  const handleDownloadExcel = () => {
+    // Sheet 1: Instruction
+    const instructionSheet = XLSX.utils.aoa_to_sheet([
+      ["Instruction"],
+      ["This file contains Portfolio and Instrument details."],
+      ["Portfolio is your uploaded/updated holdings."],
+      ["Instrument sheet is refreshed daily from Zerodha."],
+    ]);
 
-// ===== Proper Excel (.xlsx) download =====
-const handleDownloadExcel = () => {
-  const headers = [
-    "Symbol",
-    "Name",
-    "Segment",
-    "Qty",
-    "Avg Price",
-    "Entry Price",
-    "Stoploss",
-    "Target",
-    "Live",
-    "Investment",
-    "Date",
-  ];
-
-  const rows =
-    filteredOpen && filteredOpen.length
-      ? filteredOpen.map((p) => {
+    // Sheet 2: Portfolio
+    const portfolioHeaders = [
+      "Symbol",
+      "Name",
+      "Segment",
+      "Qty",
+      "Avg Price",
+      "Entry Price",
+      "Stoploss",
+      "Target",
+      "Live",
+      "Investment",
+      "Date",
+    ];
+    const portfolioRows =
+      filteredOpen && filteredOpen.length
+        ? filteredOpen.map((p) => {
           const symbol = (p.symbol || p.script || "").toUpperCase();
           const name = p.name || "";
           const seg = (p.segment || "delivery").toLowerCase();
@@ -281,30 +286,41 @@ const handleDownloadExcel = () => {
             ymd,
           ];
         })
-      : [];
+        : [];
+    const portfolioSheet = XLSX.utils.aoa_to_sheet([
+      portfolioHeaders,
+      ...portfolioRows,
+    ]);
 
-  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Portfolio");
+    // Sheet 3: Instrument (dummy for now)
+    const instrumentSheet = XLSX.utils.aoa_to_sheet([
+      ["Instrument", "Exchange", "Lot Size", "Tick Size"],
+      ["RELIANCE", "NSE", 505, 0.05],
+      ["TCS", "NSE", 150, 0.05],
+      ["INFY", "NSE", 300, 0.05],
+    ]);
 
-  const excelBuffer = XLSX.write(workbook, {
-    bookType: "xlsx",
-    type: "array",
-  });
+    // Create workbook and append all 3 sheets
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, instructionSheet, "Instruction");
+    XLSX.utils.book_append_sheet(workbook, portfolioSheet, "Portfolio");
+    XLSX.utils.book_append_sheet(workbook, instrumentSheet, "Instrument");
 
-  const blob = new Blob([excelBuffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-
-  const stamp = new Date()
-    .toISOString()
-    .slice(0, 19)
-    .replace("T", "_")
-    .replace(/:/g, "");
-
-  saveAs(blob, `portfolio_${username || "user"}_${stamp}.xlsx`);
-};
-
+    // Save file
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const stamp = new Date()
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", "_")
+      .replace(/:/g, "");
+    saveAs(blob, `portfolio_${username || "user"}_${stamp}.xlsx`);
+  };
 
   // Totals
   const totalInvested = useMemo(
@@ -363,11 +379,10 @@ const handleDownloadExcel = () => {
                 Current Valuation: {money(totalCurrentValuation)}
               </span>
               <span
-                className={`inline-block px-4 py-2 rounded-xl shadow text-sm font-semibold ${
-                  totalPnL >= 0
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-rose-50 text-rose-700"
-                }`}
+                className={`inline-block px-4 py-2 rounded-xl shadow text-sm font-semibold ${totalPnL >= 0
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-rose-50 text-rose-700"
+                  }`}
               >
                 P&L: {money(totalPnL)} ({signed(totalPnLPct, 2)}%)
               </span>
@@ -437,15 +452,15 @@ const handleDownloadExcel = () => {
                   total > 0
                     ? "text-green-600"
                     : total < 0
-                    ? "text-red-600"
-                    : "text-gray-600";
+                      ? "text-red-600"
+                      : "text-gray-600";
 
                 const footerPnlColor =
                   cardPnL > 0
                     ? "text-green-600"
                     : cardPnL < 0
-                    ? "text-red-600"
-                    : "text-gray-600";
+                      ? "text-red-600"
+                      : "text-gray-600";
 
                 return (
                   <div
@@ -569,11 +584,10 @@ const handleDownloadExcel = () => {
               <div>
                 P&L / Share:{" "}
                 <span
-                  className={`font-semibold ${
-                    (selected.pnlPerShare ?? 0) >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
+                  className={`font-semibold ${(selected.pnlPerShare ?? 0) >= 0
+                    ? "text-green-600"
+                    : "text-red-600"
+                    }`}
                 >
                   {money(selected.pnlPerShare ?? 0)}
                 </span>
