@@ -34,7 +34,7 @@ export default function Funds({ username }) {
     setLoading(true);
     setErr("");
     setOk("");
-    fetch(`${API}/funds/available/${username}`)
+    fetch(`/funds/available/${username}`)
       .then((r) => {
         if (!r.ok) throw new Error("Failed to fetch funds");
         return r.json();
