@@ -38,7 +38,7 @@ export default function Sell() {
   useEffect(() => {
     const now = new Date();
     const cutoff = new Date();
-    cutoff.setHours(15, 45, 0, 0); // 3:45 PM
+    cutoff.setHours(23, 59, 0, 0); // 3:45 PM
 
     if (now > cutoff && !isModify && !isAdd) {
       const confirmProceed = window.confirm(
