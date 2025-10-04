@@ -123,28 +123,28 @@ export default function History({ username }) {
     const rows =
       filteredHistory && filteredHistory.length
         ? filteredHistory.map((t) => {
-            const symbolUpper = (t.symbol || "—").toUpperCase();
-            const rowDate = pickRowDate(t) || "";
-            const buyQty = asNum(t.buy_qty) ?? "";
-            const buyPrice = asNum(t.buy_price);
-            const sellQty = asNum(t.sell_qty) ?? "";
-            const sellAvg = asNum(t.sell_avg_price);
-            const invested = asNum(t.invested_value);
-            const pnl = asNum(t.pnl);
+          const symbolUpper = (t.symbol || "—").toUpperCase();
+          const rowDate = pickRowDate(t) || "";
+          const buyQty = asNum(t.buy_qty) ?? "";
+          const buyPrice = asNum(t.buy_price);
+          const sellQty = asNum(t.sell_qty) ?? "";
+          const sellAvg = asNum(t.sell_avg_price);
+          const invested = asNum(t.invested_value);
+          const pnl = asNum(t.pnl);
 
-            return [
-              symbolUpper,
-              rowDate,
-              buyQty,
-              dateOnly(t.buy_date),
-              buyPrice !== null ? buyPrice.toFixed(2) : "",
-              sellQty,
-              sellAvg !== null ? sellAvg.toFixed(2) : "",
-              dateOnly(t.sell_date),
-              invested !== null ? invested.toFixed(2) : "",
-              pnl !== null ? pnl.toFixed(2) : "",
-            ];
-          })
+          return [
+            symbolUpper,
+            rowDate,
+            buyQty,
+            dateOnly(t.buy_date),
+            buyPrice !== null ? buyPrice.toFixed(2) : "",
+            sellQty,
+            sellAvg !== null ? sellAvg.toFixed(2) : "",
+            dateOnly(t.sell_date),
+            invested !== null ? invested.toFixed(2) : "",
+            pnl !== null ? pnl.toFixed(2) : "",
+          ];
+        })
         : [];
 
     const thead =
@@ -155,11 +155,11 @@ export default function History({ username }) {
     const tbody =
       rows.length > 0
         ? rows
-            .map(
-              (r) =>
-                "<tr>" + r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") + "</tr>"
-            )
-            .join("")
+          .map(
+            (r) =>
+              "<tr>" + r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") + "</tr>"
+          )
+          .join("")
         : ""; // header-only if no data
 
     return `<!DOCTYPE html>
@@ -300,8 +300,8 @@ export default function History({ username }) {
               pnlNum > 0
                 ? "text-green-600"
                 : pnlNum < 0
-                ? "text-red-600"
-                : "text-gray-800";
+                  ? "text-red-600"
+                  : "text-gray-800";
 
             const sellQty = asNum(t.sell_qty) ?? 0;
             const sellAvg = asNum(t.sell_avg_price);
