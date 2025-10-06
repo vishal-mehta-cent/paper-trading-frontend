@@ -57,7 +57,7 @@ useEffect(() => {
   // Check only when not modifying/adding
   if (!isMarketOpen && !isModify && !isAdd) {
     const confirmProceed = window.confirm(
-      "⚠️ Market (UTC 03:45–10:00) is closed. Do you still want to place a SELL order?"
+      "⚠️ Market (UTC 03:30–10:15) is closed. Do you still want to place a SELL order?"
     );
     if (!confirmProceed) {
       nav(`/script/${symbol}`);
