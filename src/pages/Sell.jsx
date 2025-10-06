@@ -45,7 +45,7 @@ useEffect(() => {
   // ---- Define UTC market hours ----
   // For example: Indian market 09:15–15:30 IST = 03:45–10:00 UTC
   const MARKET_OPEN_UTC = { h: 3, m: 30 };
-  const MARKET_CLOSE_UTC = { h: 10, m: 15 };
+  const MARKET_CLOSE_UTC = { h: 10, m: 30 };
 
   // Convert to comparable numbers (minutes since midnight)
   const nowMinutes = hours * 60 + minutes;
@@ -57,7 +57,7 @@ useEffect(() => {
   // Check only when not modifying/adding
   if (!isMarketOpen && !isModify && !isAdd) {
     const confirmProceed = window.confirm(
-      "⚠️ Market (UTC 03:30–10:15) is closed. Do you still want to place a SELL order?"
+      "⚠️ Market (UTC 03:30–10:30) is closed. Do you still want to place a SELL order?"
     );
     if (!confirmProceed) {
       nav(`/script/${symbol}`);
