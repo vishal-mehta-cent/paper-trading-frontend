@@ -44,8 +44,8 @@ useEffect(() => {
 
   // ---- Define UTC market hours ----
   // For example: Indian market 09:15–15:30 IST = 03:45–10:00 UTC
-  const MARKET_OPEN_UTC = { h: 3, m: 45 };
-  const MARKET_CLOSE_UTC = { h: 10, m: 0 };
+  const MARKET_OPEN_UTC = { h: 3, m: 30 };
+  const MARKET_CLOSE_UTC = { h: 10, m: 15 };
 
   // Convert to comparable numbers (minutes since midnight)
   const nowMinutes = hours * 60 + minutes;
