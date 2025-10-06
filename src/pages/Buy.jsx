@@ -34,21 +34,40 @@ export default function Buy() {
   const username = localStorage.getItem("username");
   const userEditedPrice = useRef(false);
 
-  // -------- Check market time on mount --------
-  useEffect(() => {
-    const now = new Date();
-    const cutoff = new Date();
-    cutoff.setHours(23, 59, 0, 0); // 3:45 PM
+// -------- Check market time on mount (UTC based) --------
+useEffect(() => {
+  // Current UTC time
+  const nowUTC = new Date();
+  const hours = nowUTC.getUTCHours();
+  const minutes = nowUTC.getUTCMinutes();
 
-    if (now > cutoff && !isModify && !isAdd) {
-      const confirmProceed = window.confirm(
-        "⚠️ Market is closed. Do you still want to place a BUY order?"
-      );
-      if (!confirmProceed) {
-        nav(`/script/${symbol}`); // back to script detail page
-      }
+  // Define UTC market hours
+  // 🇮🇳 Indian Market → 09:15–15:30 IST = 03:45–10:00 UTC
+  // 🇺🇸 US Market → 09:30–16:00 Eastern = 14:30–21:00 UTC
+  // Choose which one you want:
+  const MARKET_OPEN_UTC = { h: 3, m: 30 };  // for Indian
+  const MARKET_CLOSE_UTC = { h: 10, m: 15 }; // for Indian
+  // const MARKET_OPEN_UTC = { h: 14, m: 30 }; // for US
+  // const MARKET_CLOSE_UTC = { h: 21, m: 0 }; // for US
+
+  // Convert to comparable minute counts
+  const nowMinutes = hours * 60 + minutes;
+  const openMinutes = MARKET_OPEN_UTC.h * 60 + MARKET_OPEN_UTC.m;
+  const closeMinutes = MARKET_CLOSE_UTC.h * 60 + MARKET_CLOSE_UTC.m;
+
+  const isMarketOpen = nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
+
+  // Show warning if market closed
+  if (!isMarketOpen && !isModify && !isAdd) {
+    const confirmProceed = window.confirm(
+      "⚠️ Market (UTC 03:30–10:15) is closed. Do you still want to place a BUY order?"
+    );
+    if (!confirmProceed) {
+      nav(`/script/${symbol}`);
     }
-  }, [nav, symbol, isModify, isAdd]);
+  }
+}, [nav, symbol, isModify, isAdd]);
+
 
   // -------- Live price polling --------
   useEffect(() => {
