@@ -46,7 +46,7 @@ useEffect(() => {
   // 🇺🇸 US Market → 09:30–16:00 Eastern = 14:30–21:00 UTC
   // Choose which one you want:
   const MARKET_OPEN_UTC = { h: 3, m: 30 };  // for Indian
-  const MARKET_CLOSE_UTC = { h: 10, m: 15 }; // for Indian
+  const MARKET_CLOSE_UTC = { h: 10, m: 30 }; // for Indian
   // const MARKET_OPEN_UTC = { h: 14, m: 30 }; // for US
   // const MARKET_CLOSE_UTC = { h: 21, m: 0 }; // for US
 
@@ -60,7 +60,7 @@ useEffect(() => {
   // Show warning if market closed
   if (!isMarketOpen && !isModify && !isAdd) {
     const confirmProceed = window.confirm(
-      "⚠️ Market (UTC 03:30–10:15) is closed. Do you still want to place a BUY order?"
+      "⚠️ Market (UTC 03:30–10:30) is closed. Do you still want to place a BUY order?"
     );
     if (!confirmProceed) {
       nav(`/script/${symbol}`);
