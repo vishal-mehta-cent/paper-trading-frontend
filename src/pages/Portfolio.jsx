@@ -29,9 +29,9 @@ const money = (v) => {
   return n === null
     ? "₹0.00"
     : `₹${n.toLocaleString("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
 };
 const signed = (n, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`;
 
@@ -41,8 +41,8 @@ const Chip = ({ label, value, tone = "gray" }) => {
     tone === "red"
       ? "bg-red-50 text-red-700 border-red-200"
       : tone === "green"
-        ? "bg-green-50 text-green-700 border-green-200"
-        : "bg-gray-50 text-gray-700 border-gray-200";
+      ? "bg-green-50 text-green-700 border-green-200"
+      : "bg-gray-50 text-gray-700 border-gray-200";
   return (
     <span
       className={`inline-flex items-center text-xs px-2 py-1 rounded-full border ${toneClass}`}
@@ -58,10 +58,11 @@ const SegmentBadge = ({ segment }) => {
   const isIntra = seg === "intraday";
   return (
     <span
-      className={`inline-flex items-center px-2 py-[2px] rounded-full text-[11px] border ${isIntra
-        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-        : "bg-amber-50 text-amber-700 border-amber-200"
-        }`}
+      className={`inline-flex items-center px-2 py-[2px] rounded-full text-[11px] border ${
+        isIntra
+          ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+          : "bg-amber-50 text-amber-700 border-amber-200"
+      }`}
       title="Segment"
     >
       {isIntra ? "intraday" : "delivery"}
@@ -79,7 +80,6 @@ export default function Portfolio({ username }) {
   const navigate = useNavigate();
 
   const fileInputRef = useRef(null);
-
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -98,7 +98,7 @@ export default function Portfolio({ username }) {
           try {
             const j = await res.json();
             detail = j?.detail || "";
-          } catch { }
+          } catch {}
           throw new Error(
             detail || `Failed to fetch portfolio (HTTP ${res.status})`
           );
@@ -187,7 +187,7 @@ export default function Portfolio({ username }) {
           });
           setQuotes(qmap);
         })
-        .catch(() => { });
+        .catch(() => {});
     };
 
     fetchQuotes();
@@ -238,7 +238,6 @@ export default function Portfolio({ username }) {
 
   // ===== Multi-sheet Excel (.xlsx) download =====
   const handleDownloadExcel = () => {
-    // Sheet 1: Instruction
     const instructionSheet = XLSX.utils.aoa_to_sheet([
       ["Instruction"],
       ["This file contains Portfolio and Instrument details."],
@@ -246,7 +245,6 @@ export default function Portfolio({ username }) {
       ["Instrument sheet is refreshed daily from Zerodha."],
     ]);
 
-    // Sheet 2: Portfolio
     const portfolioHeaders = [
       "Symbol",
       "Name",
@@ -263,43 +261,42 @@ export default function Portfolio({ username }) {
     const portfolioRows =
       filteredOpen && filteredOpen.length
         ? filteredOpen.map((p) => {
-          const symbol = (p.symbol || p.script || "").toUpperCase();
-          const name = p.name || "";
-          const seg = (p.segment || "delivery").toLowerCase();
-          const qty = toNum(p.qty) ?? 0;
-          const avg = toNum(p.avg_price) ?? 0;
-          const entry = toNum(p.entry_price) ?? avg;
-          const live =
-            toNum(quotes[symbol]?.price) ??
-            toNum(p.current_price) ??
-            avg ??
-            0;
-          const sl = toNum(p.stoploss) ?? 0;
-          const tgt = toNum(p.target) ?? 0;
-          const invest = qty * (avg ?? 0);
-          const dtRaw = pickDateTime(p);
-          const ymd = toLocalYMD(parseDate(dtRaw)) || "";
-          return [
-            symbol,
-            name,
-            seg,
-            qty,
-            avg,
-            entry,
-            sl,
-            tgt,
-            live,
-            invest,
-            ymd,
-          ];
-        })
+            const symbol = (p.symbol || p.script || "").toUpperCase();
+            const name = p.name || "";
+            const seg = (p.segment || "delivery").toLowerCase();
+            const qty = toNum(p.qty) ?? 0;
+            const avg = toNum(p.avg_price) ?? 0;
+            const entry = toNum(p.entry_price) ?? avg;
+            const live =
+              toNum(quotes[symbol]?.price) ??
+              toNum(p.current_price) ??
+              avg ??
+              0;
+            const sl = toNum(p.stoploss) ?? 0;
+            const tgt = toNum(p.target) ?? 0;
+            const invest = qty * (avg ?? 0);
+            const dtRaw = pickDateTime(p);
+            const ymd = toLocalYMD(parseDate(dtRaw)) || "";
+            return [
+              symbol,
+              name,
+              seg,
+              qty,
+              avg,
+              entry,
+              sl,
+              tgt,
+              live,
+              invest,
+              ymd,
+            ];
+          })
         : [];
     const portfolioSheet = XLSX.utils.aoa_to_sheet([
       portfolioHeaders,
       ...portfolioRows,
     ]);
 
-    // Sheet 3: Instrument (dummy for now)
     const instrumentSheet = XLSX.utils.aoa_to_sheet([
       ["Instrument", "Exchange", "Lot Size", "Tick Size"],
       ["RELIANCE", "NSE", 505, 0.05],
@@ -307,13 +304,11 @@ export default function Portfolio({ username }) {
       ["INFY", "NSE", 300, 0.05],
     ]);
 
-    // Create workbook and append all 3 sheets
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, instructionSheet, "Instruction");
     XLSX.utils.book_append_sheet(workbook, portfolioSheet, "Portfolio");
     XLSX.utils.book_append_sheet(workbook, instrumentSheet, "Instrument");
 
-    // Save file
     const excelBuffer = XLSX.write(workbook, {
       bookType: "xlsx",
       type: "array",
@@ -386,10 +381,11 @@ export default function Portfolio({ username }) {
                 Current Valuation: {money(totalCurrentValuation)}
               </span>
               <span
-                className={`inline-block px-4 py-2 rounded-xl shadow text-sm font-semibold ${totalPnL >= 0
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "bg-rose-50 text-rose-700"
-                  }`}
+                className={`inline-block px-4 py-2 rounded-xl shadow text-sm font-semibold ${
+                  totalPnL >= 0
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-rose-50 text-rose-700"
+                }`}
               >
                 P&L: {money(totalPnL)} ({signed(totalPnLPct, 2)}%)
               </span>
@@ -448,9 +444,13 @@ export default function Portfolio({ username }) {
                 const q = quotes[symbol] || {};
                 const live = toNum(q.price) ?? toNum(p.current_price) ?? avg;
 
-                const perShare = entry && live ? live - entry : 0;
-                const absPct = entry ? (perShare / entry) * 100 : 0;
-                const total = perShare * qty;
+                // ✅ Now using backend-calculated fields only
+                const total = toNum(p.script_pnl) ?? 0;
+                const absPct = toNum(p.abs_pct) ?? 0;
+                const perShare =
+                  (toNum(p.qty) ?? 0) > 0
+                    ? total / (toNum(p.qty) ?? 1)
+                    : 0;
 
                 const currentVal = (toNum(live) ?? 0) * (qty ?? 0);
                 const cardPnL = currentVal - invest;
@@ -459,15 +459,15 @@ export default function Portfolio({ username }) {
                   total > 0
                     ? "text-green-600"
                     : total < 0
-                      ? "text-red-600"
-                      : "text-gray-600";
+                    ? "text-red-600"
+                    : "text-gray-600";
 
                 const footerPnlColor =
                   cardPnL > 0
                     ? "text-green-600"
                     : cardPnL < 0
-                      ? "text-red-600"
-                      : "text-gray-600";
+                    ? "text-red-600"
+                    : "text-gray-600";
 
                 return (
                   <div
@@ -519,7 +519,9 @@ export default function Portfolio({ username }) {
                           )}
                         </div>
                         <div className="text-right">
-                          <div className={`text-base font-semibold ${pnlColor}`}>
+                          <div
+                            className={`text-base font-semibold ${pnlColor}`}
+                          >
                             {money(total)}
                           </div>
                           <div className={`text-xs mt-1 ${pnlColor}`}>
@@ -586,7 +588,8 @@ export default function Portfolio({ username }) {
               <div>Qty: {selected.qty}</div>
               <div>Avg Price: {money(selected.avg_price)}</div>
               <div>
-                Entry Price: {money(selected.entry_price ?? selected.avg_price)}
+                Entry Price:{" "}
+                {money(selected.entry_price ?? selected.avg_price)}
               </div>
               <div>Stoploss: {money(selected.stoploss ?? 0)}</div>
               <div>Target: {money(selected.target ?? 0)}</div>
@@ -594,10 +597,11 @@ export default function Portfolio({ username }) {
               <div>
                 P&L / Share:{" "}
                 <span
-                  className={`font-semibold ${(selected.pnlPerShare ?? 0) >= 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                    }`}
+                  className={`font-semibold ${
+                    (selected.pnlPerShare ?? 0) >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
                 >
                   {money(selected.pnlPerShare ?? 0)}
                 </span>
