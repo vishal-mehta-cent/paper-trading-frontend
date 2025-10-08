@@ -12,6 +12,13 @@ import {
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
+// ---------- API base (prod-safe) ----------
+const API_BASE = (
+  import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000"
+)
+  .trim()
+  .replace(/\/+$/, "");
+
 // ---------- formatting helpers ----------
 const toNum = (v) => {
   const n = Number(v);
@@ -82,7 +89,7 @@ export default function Portfolio({ username }) {
     setError("");
     const ctrl = new AbortController();
 
-    fetch(`http://127.0.0.1:8000/portfolio/${encodeURIComponent(username)}`, {
+    fetch(`${API_BASE}/portfolio/${encodeURIComponent(username)}`, {
       signal: ctrl.signal,
     })
       .then(async (res) => {
@@ -165,7 +172,7 @@ export default function Portfolio({ username }) {
     if (!syms.length) return;
 
     const fetchQuotes = () => {
-      fetch(`http://127.0.0.1:8000/quotes?symbols=${syms.join(",")}`)
+      fetch(`${API_BASE}/quotes?symbols=${syms.join(",")}`)
         .then((r) => r.json())
         .then((arr) => {
           const qmap = {};
@@ -208,7 +215,7 @@ export default function Portfolio({ username }) {
     }
     const formData = new FormData();
     formData.append("file", file);
-    fetch(`http://127.0.0.1:8000/portfolio/${username}/upload`, {
+    fetch(`${API_BASE}/portfolio/${username}/upload`, {
       method: "POST",
       body: formData,
     })
@@ -505,7 +512,10 @@ export default function Portfolio({ username }) {
                           {total >= 0 ? (
                             <ArrowUpRight size={16} className="text-blue-700" />
                           ) : (
-                            <ArrowDownRight size={16} className="text-blue-700" />
+                            <ArrowDownRight
+                              size={16}
+                              className="text-blue-700"
+                            />
                           )}
                         </div>
                         <div className="text-right">
