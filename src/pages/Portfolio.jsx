@@ -161,7 +161,7 @@ export default function Portfolio({ username }) {
     });
   }, [data.open, startDate, endDate]);
 
-  // ------- poll quotes -------
+  // ------- poll quotes (only to display "Live:" label; P&L uses backend fields) -------
   useEffect(() => {
     if (!filteredOpen.length) return;
     const syms = [
@@ -339,8 +339,8 @@ export default function Portfolio({ username }) {
       const symbol = (p.symbol || p.script || "").toUpperCase();
       const qty = toNum(p.qty) ?? 0;
       const live =
-        toNum(quotes[symbol]?.price) ??
         toNum(p.current_price) ??
+        toNum(quotes[symbol]?.price) ??
         toNum(p.avg_price) ??
         0;
       return s + qty * live;
@@ -435,19 +435,25 @@ export default function Portfolio({ username }) {
                 const seg = (p.segment || "delivery").toLowerCase();
 
                 const qty = toNum(p.qty) ?? 0;
-                const avg = toNum(p.avg_price) ?? 0;
-                const entry = toNum(p.entry_price) ?? avg;
+                const entry = toNum(p.entry_price) ?? toNum(p.avg_price) ?? 0;
                 const sl = toNum(p.stoploss) ?? 0;
                 const tgt = toNum(p.target) ?? 0;
 
-                const invest = qty * avg;
-                const q = quotes[symbol] || {};
-                const live = toNum(q.price) ?? toNum(p.current_price) ?? avg;
+                // Live label only
+                const live =
+                  toNum(p.current_price) ??
+                  toNum(quotes[symbol]?.price) ??
+                  toNum(p.avg_price) ??
+                  0;
 
-                // Use backend-calculated P&L directly
-                const total = toNum(p.script_pnl) ?? 0;
-                const absPct = toNum(p.abs_pct) ?? 0;
-                const perShare = total / (toNum(p.qty) || 1);
+                // ✅ Use backend-calculated fields (with safe fallbacks)
+                const perShare =
+                  toNum(p.pnl_per_share) ?? (toNum(live) - (entry ?? 0));
+                const total =
+                  toNum(p.pnl_total) ?? perShare * (qty ?? 0);
+                const absPct =
+                  toNum(p.pct) ??
+                  ((entry ? (perShare / entry) : 0) * 100);
 
                 const pnlColor =
                   total > 0
@@ -456,7 +462,8 @@ export default function Portfolio({ username }) {
                     ? "text-red-600"
                     : "text-gray-600";
 
-                const currentVal = (toNum(live) ?? 0) * (qty ?? 0);
+                const invest = qty * entry;
+                const currentVal = qty * live;
                 const cardPnL = currentVal - invest;
 
                 const footerPnlColor =
@@ -520,7 +527,7 @@ export default function Portfolio({ username }) {
                             {money(total)}
                           </div>
                           <div className={`text-xs mt-1 ${pnlColor}`}>
-                            {signed(perShare, 2)} ({signed(absPct, 2)}%)
+                            {signed(perShare, 4)} ({signed(absPct, 2)}%)
                           </div>
                           <button
                             onClick={(e) => {
@@ -583,8 +590,7 @@ export default function Portfolio({ username }) {
               <div>Qty: {selected.qty}</div>
               <div>Avg Price: {money(selected.avg_price)}</div>
               <div>
-                Entry Price:{" "}
-                {money(selected.entry_price ?? selected.avg_price)}
+                Entry Price: {money(selected.entry_price ?? selected.avg_price)}
               </div>
               <div>Stoploss: {money(selected.stoploss ?? 0)}</div>
               <div>Target: {money(selected.target ?? 0)}</div>
