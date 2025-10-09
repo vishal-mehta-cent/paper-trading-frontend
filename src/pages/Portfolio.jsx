@@ -444,14 +444,10 @@ export default function Portfolio({ username }) {
                 const q = quotes[symbol] || {};
                 const live = toNum(q.price) ?? toNum(p.current_price) ?? avg;
 
-               // Use backend-calculated values if available
-                const total = toNum(p.script_pnl) ?? ((live - entry) * qty);
-                const absPct = toNum(p.abs_pct) ?? (((live - entry) / entry) * 100);
-                const perShare = total / (toNum(p.qty) ?? 1);
-
-
-                const currentVal = (toNum(live) ?? 0) * (qty ?? 0);
-                const cardPnL = currentVal - invest;
+                // Use backend-calculated P&L directly
+                const total = toNum(p.script_pnl) ?? 0;
+                const absPct = toNum(p.abs_pct) ?? 0;
+                const perShare = total / (toNum(p.qty) || 1);
 
                 const pnlColor =
                   total > 0
@@ -459,6 +455,9 @@ export default function Portfolio({ username }) {
                     : total < 0
                     ? "text-red-600"
                     : "text-gray-600";
+
+                const currentVal = (toNum(live) ?? 0) * (qty ?? 0);
+                const cardPnL = currentVal - invest;
 
                 const footerPnlColor =
                   cardPnL > 0
@@ -517,13 +516,11 @@ export default function Portfolio({ username }) {
                           )}
                         </div>
                         <div className="text-right">
-                          <div
-                            className={`text-base font-semibold ${pnlColor}`}
-                          >
+                          <div className={`text-base font-semibold ${pnlColor}`}>
                             {money(total)}
                           </div>
                           <div className={`text-xs mt-1 ${pnlColor}`}>
-                            {signed(perShare, 4)} ({signed(absPct, 2)}%)
+                            {signed(perShare, 2)} ({signed(absPct, 2)}%)
                           </div>
                           <button
                             onClick={(e) => {
