@@ -444,13 +444,11 @@ export default function Portfolio({ username }) {
                 const q = quotes[symbol] || {};
                 const live = toNum(q.price) ?? toNum(p.current_price) ?? avg;
 
-                // ✅ Now using backend-calculated fields only
-                const total = toNum(p.script_pnl) ?? 0;
-                const absPct = toNum(p.abs_pct) ?? 0;
-                const perShare =
-                  (toNum(p.qty) ?? 0) > 0
-                    ? total / (toNum(p.qty) ?? 1)
-                    : 0;
+               // Use backend-calculated values if available
+                const total = toNum(p.script_pnl) ?? ((live - entry) * qty);
+                const absPct = toNum(p.abs_pct) ?? (((live - entry) / entry) * 100);
+                const perShare = total / (toNum(p.qty) ?? 1);
+
 
                 const currentVal = (toNum(live) ?? 0) * (qty ?? 0);
                 const cardPnL = currentVal - invest;
