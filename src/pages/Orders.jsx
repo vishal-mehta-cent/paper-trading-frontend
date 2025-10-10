@@ -290,23 +290,27 @@ export default function Orders({ username }) {
 
   const ordersToShow = isOrdersTab ? openOrders : positions;
 
-  // ---------- Total P&L (active positions only) ----------
-  const totalPnl = positions.reduce((sum, o) => {
-    if (o.inactive) return sum; // ignore closed/inactive rows
+// ---------- Total P&L (includes both active & closed) ----------
+const totalPnl = positions.reduce((sum, o) => {
+  const qty = toNum(o.qty) ?? 0;
+  const entry = toNum(o.price) ?? 0;
 
-    const backendTotal = toNum(o.script_pnl) ?? toNum(o.pnl_value);
-    if (backendTotal !== null) return sum + backendTotal;
+  // ✅ Freeze with exit_price if inactive
+  const effectivePrice =
+    o.inactive && o.exit_price != null
+      ? toNum(o.exit_price)
+      : (toNum(quotes[(o.script || o.symbol || "").toUpperCase()]?.price) ??
+         toNum(o.live_price) ??
+         entry);
 
-    const script = o.script || o.symbol;
-    const q = (script && quotes[(script || "").toUpperCase()]) || {};
-    const entry = toNum(o.price) ?? 0;
-    const live = toNum(q.price) ?? toNum(o.live_price) ?? entry;
-    const qty = toNum(o.qty) ?? 0;
-    const isBuy = (o.type || o.order_type) === "BUY";
-    const perShare = entry && live ? (isBuy ? (live - entry) : (entry - live)) : 0;
-    const pnl = perShare * qty;
-    return sum + (Number.isFinite(pnl) ? pnl : 0);
-  }, 0);
+  const isBuy = (o.type || o.order_type) === "BUY";
+  const perShare = entry && effectivePrice
+    ? (isBuy ? (effectivePrice - entry) : (entry - effectivePrice))
+    : 0;
+  const pnl = perShare * qty;
+
+  return sum + (Number.isFinite(pnl) ? pnl : 0);
+}, 0);
 
   // auto-switch to Positions when orders trigger
   useEffect(() => {
@@ -506,8 +510,10 @@ export default function Orders({ username }) {
             {ordersToShow.map((o, i) => {
               const script = (o.script || o.symbol || "N/A").toUpperCase();
               const q = quotes[script] || {};
-              const live = toNum(q.price) ?? toNum(o.live_price) ?? toNum(o.price) ?? 0;
-
+               // ✅ Use exit_price for inactive (closed) SELL scripts
+              const live = o.inactive && o.exit_price != null
+                ? toNum(o.exit_price)
+                : (toNum(q.price) ?? toNum(o.live_price) ?? toNum(o.price) ?? 0);
               // timestamp (time + date)
               const dtRaw = pickDateTime(o);
               const dt = parseDate(dtRaw);
@@ -522,18 +528,26 @@ export default function Orders({ username }) {
                 : toNum(o.price) ?? 0;
 
               // ===== Right-side figures (corrected) =====
+              // BUY  : live - entry
+              // SELL : entry - live
+              // BUY  : live - entry
+              // SELL : entry - live
+              // ===== Right-side figures (corrected) =====
               const qty = toNum(o.qty) ?? 0;
 
-              // BUY  : live - entry
-              // SELL : entry - live
-              // BUY  : live - entry
-              // SELL : entry - live
+              // ✅ Freeze calculations for inactive rows using exit_price
+              const effectivePrice =
+                o.inactive && o.exit_price != null ? toNum(o.exit_price) : live;
+
               const perShare =
-                entryPrice && live ? (isBuy ? (live - entryPrice) : (entryPrice - live)) : 0;
+                entryPrice && effectivePrice
+                  ? (isBuy ? (effectivePrice - entryPrice) : (entryPrice - effectivePrice))
+                  : 0;
 
               const pct = entryPrice ? (perShare / entryPrice) * 100 : 0;
 
               const total = perShare * qty;
+
 
               const pnlUp = total >= 0;
               const pnlColor = pnlUp ? "text-green-600" : "text-red-600";
@@ -580,8 +594,12 @@ export default function Orders({ username }) {
                       <div className="flex items-center gap-2 mt-1">
                         <SegmentBadge segment={o.segment} />
                         <span className="text-xs text-gray-600">
-                          Live: <span className="font-semibold text-gray-800">{money(live)}</span>
+                        {o.inactive && o.exit_price != null ? "Exit" : "Live"}:{" "}
+                        <span className="font-semibold text-gray-800">
+                          {money(o.inactive && o.exit_price != null ? o.exit_price : live)}
                         </span>
+                      </span>
+
                         <span className="text-[11px] text-gray-500 border rounded px-1">
                           {o.exchange || "NSE"}
                         </span>
@@ -597,7 +615,18 @@ export default function Orders({ username }) {
                         {(perShare >= 0 ? "+" : "") + perShare.toFixed(4)} (
                         {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%)
                       </div>
+                       {/* ✅ Exit Price shown neatly below P&L */}
+                      {!isOrdersTab && o.exit_price != null && (
+                        <div className="text-xs text-gray-600 mt-1">
+                          Exit Price:{" "}
+                          <span className="font-semibold text-gray-800">
+                            {money(o.exit_price)}
+                          </span>
+                        </div>
+                      )}
+                    
                     </div>
+                    
                   </div>
 
                   {/* entry/SL/Target */}
