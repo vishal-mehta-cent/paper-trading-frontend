@@ -40,6 +40,32 @@ import ModifyOrderPage from "./pages/ModifyOrderPage";
 import ProfileDetail from "./pages/ProfileDetail";
 import Payments from "./pages/Payments.jsx";
 
+/** ================================
+ *  🔄 BACKEND KEEP-ALIVE FUNCTION
+ *  ================================ */
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_BASE_URL ||
+  "https://paper-trading-backend.onrender.com";
+
+function useBackendKeepAlive() {
+  useEffect(() => {
+    const ping = () => {
+      fetch(`${BACKEND_URL}/ping`)
+        .then(() => {
+          console.log("✅ Backend pinged to stay awake");
+        })
+        .catch((err) => console.warn("⚠️ KeepAlive ping failed:", err));
+    };
+
+    // Immediate ping at startup
+    ping();
+
+    // Repeat every 5 minutes
+    const interval = setInterval(ping, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+}
+
 /** Fixed logo shown on every non-auth page (rendered to body via portal) */
 function RouteAwareTopRightLogo() {
   const { pathname } = useLocation();
@@ -81,6 +107,9 @@ export default function App() {
   const [username, setUsername] = useState(() =>
     localStorage.getItem("username")
   );
+
+  // ✅ Call backend keep-alive when app loads
+  useBackendKeepAlive();
 
   useEffect(() => {
     if (username) localStorage.setItem("username", username);
@@ -239,8 +268,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           element={<Funds username={localStorage.getItem("username")} />}
         />
         <Route
-           path="/payments"
-           element={username ? <Payments /> : <Navigate to="/" replace />}
+          path="/payments"
+          element={username ? <Payments /> : <Navigate to="/" replace />}
         />
 
         <Route
@@ -249,7 +278,6 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             username ? <History username={username} /> : <Navigate to="/" replace />
           }
         />
-        {/* NEW: allow visiting /history/:username too (keeps existing behavior intact) */}
         <Route
           path="/history/:username"
           element={
@@ -265,16 +293,12 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           path="/settings/change-password"
           element={username ? <PasswordChange /> : <Navigate to="/" replace />}
         />
-        <Route 
-          path="/profile/details" 
-          element={<ProfileDetail />} 
-        />
-        
+        <Route path="/profile/details" element={<ProfileDetail />} />
+
         <Route
           path="/settings/change-email"
           element={username ? <EmailChange /> : <Navigate to="/" replace />}
         />
-        
 
         {/* Keep specific route before wildcard */}
         <Route path="/modify/:id" element={<ModifyOrderPage />} />
