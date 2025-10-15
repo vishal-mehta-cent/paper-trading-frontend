@@ -38,9 +38,9 @@ export default function Trade({ username }) {
     preloadScripts();
   }, [username]);
 
-  // ✅ preload instrument list
+  // ✅ preload instrument list (use the correct endpoint under /search)
   function preloadScripts() {
-    fetch(`${API}/instruments/list`)
+    fetch(`${API}/search/scripts`)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setAllScripts(data);
@@ -93,7 +93,7 @@ export default function Trade({ username }) {
           (arr || []).forEach((q) => (map[q.symbol] = q));
           setQuotes(map);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     fetchQuotes();
@@ -101,44 +101,57 @@ export default function Trade({ username }) {
     return () => clearInterval(intervalRef.current);
   }, [watchlist]);
 
-  // ✅ improved search logic
+  // ✅ improved search logic — layered & case-insensitive
   const debouncedQuery = useMemo(() => query.trim(), [query]);
+
   useEffect(() => {
     if (!debouncedQuery) {
       setSuggestions([]);
       return;
     }
 
-    // Instant local matches
+    // Small local instant matches (optional)
     const localMatches = Array.isArray(allScripts)
       ? allScripts
-          .filter(
-            (s) =>
-              s.symbol &&
-              (s.symbol.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-                (s.name || "").toLowerCase().includes(debouncedQuery.toLowerCase()))
-          )
-          .slice(0, 15)
+        .filter((s) => {
+          const q = debouncedQuery.toLowerCase();
+          return (
+            s.symbol?.toLowerCase().includes(q) ||
+            (s.name || "").toLowerCase().includes(q)
+          );
+        })
+        .slice(0, 10)
       : [];
     setSuggestions(localMatches);
 
-    // Debounced backend fetch
+    // Send a normalized query to backend (uppercase + no spaces)
+    const qUpper = debouncedQuery.toUpperCase().replace(/\s+/g, "");
+
     const timer = setTimeout(() => {
-      fetch(`${API}/search?q=${encodeURIComponent(debouncedQuery)}`)
+      fetch(`${API}/search?q=${encodeURIComponent(qUpper)}`)
         .then((r) => r.json())
         .then((data) => {
-          const lower = debouncedQuery.toLowerCase();
-          const filtered = Array.isArray(data)
-            ? data.filter(
-                (s) =>
-                  s.symbol &&
-                  (s.symbol.toLowerCase().includes(lower) ||
-                    (s.name || "").toLowerCase().includes(lower))
-              )
-            : [];
-          setSuggestions(filtered);
+          if (!Array.isArray(data)) {
+            setSuggestions([]);
+            return;
+          }
+
+          // ✅ keep equities + derivatives; do NOT re-filter by raw substring
+          const allowedExchanges = ["NSE", "NFO", "BSE"];
+          const clean = data.filter((s) =>
+            allowedExchanges.includes((s.exchange || "").toUpperCase())
+          );
+
+          // small stable sort
+          clean.sort((a, b) => (a.symbol || "").localeCompare(b.symbol || ""));
+
+          // ⛔ IMPORTANT: don't apply another substring filter here.
+          setSuggestions(clean);
+
+          // helpful while testing
+          // console.log("q=", qUpper, "items:", clean.length, clean.slice(0, 5));
         })
-        .catch(() => {});
+        .catch(() => { });
     }, 300);
 
     return () => clearTimeout(timer);
@@ -235,7 +248,7 @@ export default function Trade({ username }) {
       setSellPreviewData(data);
       setSellConfirmMsg(
         data?.message ||
-          `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
+        `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
       );
       setSellConfirmOpen(true);
     } catch (e) {
@@ -283,11 +296,10 @@ export default function Trade({ username }) {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`pb-1 ${
-                  tab === t
-                    ? "text-blue-500 border-b-2 border-blue-500"
-                    : "text-gray-500"
-                }`}
+                className={`pb-1 ${tab === t
+                  ? "text-blue-500 border-b-2 border-blue-500"
+                  : "text-gray-500"
+                  }`}
               >
                 {t === "mylist" ? "My List" : "Must Watch"}
               </button>
@@ -350,7 +362,7 @@ export default function Trade({ username }) {
                       {highlightMatch(s.name, query)}
                     </div>
                     <div className="text-xs text-gray-400">
-                      Sector: {highlightMatch(s.sector || "N/A", query)}
+                      {(s.exchange || "NSE")} | {s.segment} | {s.instrument_type}
                     </div>
                   </li>
                 ))}
@@ -385,9 +397,8 @@ export default function Trade({ username }) {
                     <div className="flex items-start space-x-2">
                       <div className="text-right">
                         <div
-                          className={`text-xl font-medium ${
-                            isPos ? "text-green-600" : "text-red-600"
-                          }`}
+                          className={`text-xl font-medium ${isPos ? "text-green-600" : "text-red-600"
+                            }`}
                         >
                           {q.price != null
                             ? Number(q.price).toLocaleString("en-IN")
@@ -396,10 +407,10 @@ export default function Trade({ username }) {
                         <div className="text-xs text-gray-600">
                           {q.change != null
                             ? `${isPos ? "+" : ""}${Number(q.change).toFixed(
-                                2
-                              )} (${isPos ? "+" : ""}${Number(
-                                q.pct_change || 0
-                              ).toFixed(2)}%)`
+                              2
+                            )} (${isPos ? "+" : ""}${Number(
+                              q.pct_change || 0
+                            ).toFixed(2)}%)`
                             : "--"}
                         </div>
                       </div>
