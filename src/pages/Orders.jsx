@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ClipboardList, Search, Briefcase, User, X, Clock } from "lucide-react";
 import BackButton from "../components/BackButton";
 import { toast } from "react-toastify";
+import useOpenTrades from "../hooks/useOpenTrades";
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
 
@@ -91,6 +92,8 @@ const SegmentBadge = ({ segment }) => {
   );
 };
 
+
+
 export default function Orders({ username }) {
   const location = useLocation();
   const [tab, setTab] = useState(location.state?.tab || "open");
@@ -105,6 +108,7 @@ export default function Orders({ username }) {
   const [errorMsg, setErrorMsg] = useState("");
   const intervalRef = useRef(null);
   const navigate = useNavigate();
+  const { data: openTrades, isRefreshing, refresh } = useOpenTrades(username);
 
   // polling refs
   const dataPollRef = useRef(null);
@@ -290,27 +294,27 @@ export default function Orders({ username }) {
 
   const ordersToShow = isOrdersTab ? openOrders : positions;
 
-// ---------- Total P&L (includes both active & closed) ----------
-const totalPnl = positions.reduce((sum, o) => {
-  const qty = toNum(o.qty) ?? 0;
-  const entry = toNum(o.price) ?? 0;
+  // ---------- Total P&L (includes both active & closed) ----------
+  const totalPnl = positions.reduce((sum, o) => {
+    const qty = toNum(o.qty) ?? 0;
+    const entry = toNum(o.price) ?? 0;
 
-  // ✅ Freeze with exit_price if inactive
-  const effectivePrice =
-    o.inactive && o.exit_price != null
-      ? toNum(o.exit_price)
-      : (toNum(quotes[(o.script || o.symbol || "").toUpperCase()]?.price) ??
-         toNum(o.live_price) ??
-         entry);
+    // ✅ Freeze with exit_price if inactive
+    const effectivePrice =
+      o.inactive && o.exit_price != null
+        ? toNum(o.exit_price)
+        : (toNum(quotes[(o.script || o.symbol || "").toUpperCase()]?.price) ??
+          toNum(o.live_price) ??
+          entry);
 
-  const isBuy = (o.type || o.order_type) === "BUY";
-  const perShare = entry && effectivePrice
-    ? (isBuy ? (effectivePrice - entry) : (entry - effectivePrice))
-    : 0;
-  const pnl = perShare * qty;
+    const isBuy = (o.type || o.order_type) === "BUY";
+    const perShare = entry && effectivePrice
+      ? (isBuy ? (effectivePrice - entry) : (entry - effectivePrice))
+      : 0;
+    const pnl = perShare * qty;
 
-  return sum + (Number.isFinite(pnl) ? pnl : 0);
-}, 0);
+    return sum + (Number.isFinite(pnl) ? pnl : 0);
+  }, 0);
 
   // auto-switch to Positions when orders trigger
   useEffect(() => {
@@ -464,21 +468,27 @@ const totalPnl = positions.reduce((sum, o) => {
     }
   };
 
+
+
   // ---------- UI ----------
   return (
     <div className="relative min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <BackButton to="/menu" />
+
       <div className="p-4">
         <h2 className="text-2xl font-bold text-center text-gray-700 dark:text-white mb-10">
           Orders
         </h2>
 
+        {/* ===== Tabs ===== */}
         <div className="sticky flex justify-center mb-4 space-x-6">
           {["open", "positions"].map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`pb-1 text-sm font-medium ${tab === t ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 dark:text-gray-300"
+              className={`pb-1 text-sm font-medium ${tab === t
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-500 dark:text-gray-300"
                 }`}
             >
               {t === "open" ? "Open Trades" : "Positions"}
@@ -486,21 +496,45 @@ const totalPnl = positions.reduce((sum, o) => {
           ))}
         </div>
 
+        {/* ===== Total P&L (Positions only) ===== */}
         {tab !== "open" && (
           <div className="mb-4 text-center">
             <div className="inline-block px-4 py-2 bg-white dark:bg-gray-800 rounded-xl shadow text-xl font-semibold">
               Total P&L:{" "}
-              <span className={totalPnl >= 0 ? "text-green-600" : "text-red-500"}>
+              <span
+                className={totalPnl >= 0 ? "text-green-600" : "text-red-500"}
+              >
                 {money(totalPnl)}
               </span>
             </div>
           </div>
         )}
 
+        {/* ===== Refresh Indicator ===== */}
+        {tab === "open" && (
+          <div className="flex justify-center mb-3 text-sm text-gray-500 dark:text-gray-300">
+            {isRefreshing ? (
+              <span>Refreshing open trades...</span>
+            ) : (
+              <button
+                onClick={refresh}
+                className="text-blue-600 hover:underline"
+              >
+                Refresh Now
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ===== List Rendering ===== */}
         {loading ? (
-          <div className="text-center text-gray-500 dark:text-gray-400">Loading...</div>
+          <div className="text-center text-gray-500 dark:text-gray-400">
+            Loading...
+          </div>
         ) : errorMsg ? (
-          <div className="text-center text-red-500 dark:text-red-400">{errorMsg}</div>
+          <div className="text-center text-red-500 dark:text-red-400">
+            {errorMsg}
+          </div>
         ) : ordersToShow.length === 0 ? (
           <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
             No {isOrdersTab ? "open trades" : "positions"}.
@@ -510,15 +544,21 @@ const totalPnl = positions.reduce((sum, o) => {
             {ordersToShow.map((o, i) => {
               const script = (o.script || o.symbol || "N/A").toUpperCase();
               const q = quotes[script] || {};
-               // ✅ Use exit_price for inactive (closed) SELL scripts
-              const live = o.inactive && o.exit_price != null
-                ? toNum(o.exit_price)
-                : (toNum(q.price) ?? toNum(o.live_price) ?? toNum(o.price) ?? 0);
+
+              // ✅ Use exit_price for inactive (closed) SELL scripts
+              const live =
+                o.inactive && o.exit_price != null
+                  ? toNum(o.exit_price)
+                  : toNum(q.price) ??
+                  toNum(o.live_price) ??
+                  toNum(o.price) ??
+                  0;
+
               // timestamp (time + date)
               const dtRaw = pickDateTime(o);
               const dt = parseDate(dtRaw);
 
-              const side = (o.type || o.order_type) || "";
+              const side = o.type || o.order_type || "";
               const isBuy = side === "BUY";
               const isSell = !isBuy;
 
@@ -527,12 +567,6 @@ const totalPnl = positions.reduce((sum, o) => {
                 ? toNum(o.trigger_price) ?? toNum(o.price) ?? 0
                 : toNum(o.price) ?? 0;
 
-              // ===== Right-side figures (corrected) =====
-              // BUY  : live - entry
-              // SELL : entry - live
-              // BUY  : live - entry
-              // SELL : entry - live
-              // ===== Right-side figures (corrected) =====
               const qty = toNum(o.qty) ?? 0;
 
               // ✅ Freeze calculations for inactive rows using exit_price
@@ -541,13 +575,13 @@ const totalPnl = positions.reduce((sum, o) => {
 
               const perShare =
                 entryPrice && effectivePrice
-                  ? (isBuy ? (effectivePrice - entryPrice) : (entryPrice - effectivePrice))
+                  ? isBuy
+                    ? effectivePrice - entryPrice
+                    : entryPrice - effectivePrice
                   : 0;
 
               const pct = entryPrice ? (perShare / entryPrice) * 100 : 0;
-
               const total = perShare * qty;
-
 
               const pnlUp = total >= 0;
               const pnlColor = pnlUp ? "text-green-600" : "text-red-600";
@@ -555,11 +589,8 @@ const totalPnl = positions.reduce((sum, o) => {
 
               const sl = toNum(o.stoploss);
               const tgt = toNum(o.target);
-
-
-
-              //const disabledRow = ((isSell && !o.short_first) || o.status === "Closed");
               const disabledRow = !!o.inactive;
+
 
               return (
                 <div
@@ -594,11 +625,11 @@ const totalPnl = positions.reduce((sum, o) => {
                       <div className="flex items-center gap-2 mt-1">
                         <SegmentBadge segment={o.segment} />
                         <span className="text-xs text-gray-600">
-                        {o.inactive && o.exit_price != null ? "Exit" : "Live"}:{" "}
-                        <span className="font-semibold text-gray-800">
-                          {money(o.inactive && o.exit_price != null ? o.exit_price : live)}
+                          {o.inactive && o.exit_price != null ? "Exit" : "Live"}:{" "}
+                          <span className="font-semibold text-gray-800">
+                            {money(o.inactive && o.exit_price != null ? o.exit_price : live)}
+                          </span>
                         </span>
-                      </span>
 
                         <span className="text-[11px] text-gray-500 border rounded px-1">
                           {o.exchange || "NSE"}
@@ -615,7 +646,7 @@ const totalPnl = positions.reduce((sum, o) => {
                         {(perShare >= 0 ? "+" : "") + perShare.toFixed(4)} (
                         {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%)
                       </div>
-                       {/* ✅ Exit Price shown neatly below P&L */}
+                      {/* ✅ Exit Price shown neatly below P&L */}
                       {!isOrdersTab && o.exit_price != null && (
                         <div className="text-xs text-gray-600 mt-1">
                           Exit Price:{" "}
@@ -624,9 +655,9 @@ const totalPnl = positions.reduce((sum, o) => {
                           </span>
                         </div>
                       )}
-                    
+
                     </div>
-                    
+
                   </div>
 
                   {/* entry/SL/Target */}
@@ -699,11 +730,18 @@ const totalPnl = positions.reduce((sum, o) => {
               // Positions modal actions
               <div className="grid grid-cols-3 gap-3">
                 <button
-                  onClick={() => handleAdd(selectedOrder)}
-                  className="bg-blue-600 text-white px-3 py-1 rounded"
+                  className="bg-green-600 text-white px-5 py-2 rounded-md hover:bg-green-700"
+                  onClick={() => {
+                    // ✅ use selectedOrder.script (or symbol) instead of undefined selectedScript
+                    const sym = getSymbol(selectedOrder);
+                    console.log("Navigating to Add:", sym);
+                    setShowActions(false);           // close modal
+                    navigate(`/add/${sym}`, { state: { fromAdd: true } });
+                  }}
                 >
                   Add
                 </button>
+
                 <button
                   onClick={() => handleExit(selectedOrder)}
                   className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
