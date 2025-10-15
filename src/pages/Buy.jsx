@@ -34,39 +34,39 @@ export default function Buy() {
   const username = localStorage.getItem("username");
   const userEditedPrice = useRef(false);
 
-// -------- Check market time on mount (UTC based) --------
-useEffect(() => {
-  // Current UTC time
-  const nowUTC = new Date();
-  const hours = nowUTC.getUTCHours();
-  const minutes = nowUTC.getUTCMinutes();
+  // -------- Check market time on mount (UTC based) --------
+  useEffect(() => {
+    // Current UTC time
+    const nowUTC = new Date();
+    const hours = nowUTC.getUTCHours();
+    const minutes = nowUTC.getUTCMinutes();
 
-  // Define UTC market hours
-  // 🇮🇳 Indian Market → 09:15–15:30 IST = 03:45–10:00 UTC
-  // 🇺🇸 US Market → 09:30–16:00 Eastern = 14:30–21:00 UTC
-  // Choose which one you want:
-  const MARKET_OPEN_UTC = { h: 3, m: 30 };  // for Indian
-  const MARKET_CLOSE_UTC = { h: 10, m: 30 }; // for Indian
-  // const MARKET_OPEN_UTC = { h: 14, m: 30 }; // for US
-  // const MARKET_CLOSE_UTC = { h: 21, m: 0 }; // for US
+    // Define UTC market hours
+    // 🇮🇳 Indian Market → 09:15–15:30 IST = 03:45–10:00 UTC
+    // 🇺🇸 US Market → 09:30–16:00 Eastern = 14:30–21:00 UTC
+    // Choose which one you want:
+    const MARKET_OPEN_UTC = { h: 3, m: 30 };  // for Indian
+    const MARKET_CLOSE_UTC = { h: 10, m: 30 }; // for Indian
+    // const MARKET_OPEN_UTC = { h: 14, m: 30 }; // for US
+    // const MARKET_CLOSE_UTC = { h: 21, m: 0 }; // for US
 
-  // Convert to comparable minute counts
-  const nowMinutes = hours * 60 + minutes;
-  const openMinutes = MARKET_OPEN_UTC.h * 60 + MARKET_OPEN_UTC.m;
-  const closeMinutes = MARKET_CLOSE_UTC.h * 60 + MARKET_CLOSE_UTC.m;
+    // Convert to comparable minute counts
+    const nowMinutes = hours * 60 + minutes;
+    const openMinutes = MARKET_OPEN_UTC.h * 60 + MARKET_OPEN_UTC.m;
+    const closeMinutes = MARKET_CLOSE_UTC.h * 60 + MARKET_CLOSE_UTC.m;
 
-  const isMarketOpen = nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
+    const isMarketOpen = nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
 
-  // Show warning if market closed
-  if (!isMarketOpen && !isModify && !isAdd) {
-    const confirmProceed = window.confirm(
-      "⚠️ Market (UTC 03:30–10:30) is closed. Do you still want to place a BUY order?"
-    );
-    if (!confirmProceed) {
-      nav(`/script/${symbol}`);
+    // Show warning if market closed
+    if (!isMarketOpen && !isModify && !isAdd) {
+      const confirmProceed = window.confirm(
+        "⚠️ Market (UTC 03:30–10:30) is closed. Do you still want to place a BUY order?"
+      );
+      if (!confirmProceed) {
+        nav(`/script/${symbol}`);
+      }
     }
-  }
-}, [nav, symbol, isModify, isAdd]);
+  }, [nav, symbol, isModify, isAdd]);
 
 
   // -------- Live price polling --------
@@ -189,6 +189,35 @@ useEffect(() => {
       setErrorMsg(e.message || "Server error");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleModifyPosition = async () => {
+    try {
+      const payload = {
+        username: localStorage.getItem("username"),
+        script: symbol, // e.g. "TCS"
+        new_qty: Number(qty),
+        stoploss: stoploss ? Number(stoploss) : null,
+        target: target ? Number(target) : null,
+        price_type: orderType, // "MARKET" or "LIMIT"
+        limit_price: limitPrice ? Number(limitPrice) : null,
+      };
+
+      const res = await fetch(`${API}/positions/modify`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Error modifying position");
+
+      toast.success("Position modified successfully!");
+      navigate("/orders"); // optional redirect
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message);
     }
   };
 
@@ -316,11 +345,9 @@ useEffect(() => {
       </div>
 
       <button
-        onClick={handleSubmit}
+        onClick={isAdd ? handleModifyPosition : handleSubmit}  // ✅ key change here
         disabled={submitting}
-        className={`mt-6 w-full py-3 text-white text-lg font-semibold rounded-lg ${submitting
-            ? "bg-green-400 cursor-not-allowed"
-            : "bg-green-600 hover:bg-green-700"
+        className={`mt-6 w-full py-3 text-white text-lg font-semibold rounded-lg ${submitting ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
           }`}
       >
         {submitting
@@ -331,6 +358,7 @@ useEffect(() => {
               ? "Save Changes"
               : "BUY"}
       </button>
+
 
       {successModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -347,4 +375,3 @@ useEffect(() => {
     </div>
   );
 }
-
