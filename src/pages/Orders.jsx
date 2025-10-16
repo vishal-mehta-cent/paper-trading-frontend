@@ -573,16 +573,16 @@ export default function Orders({ username }) {
               const effectivePrice =
                 o.inactive && o.exit_price != null ? toNum(o.exit_price) : live;
 
+              // ✅ Simple and universal: profit = (exit - entry)
               const perShare =
                 entryPrice && effectivePrice
-                  ? isBuy
-                    ? effectivePrice - entryPrice
-                    : entryPrice - effectivePrice
+                  ? effectivePrice - entryPrice
                   : 0;
 
               const pct = entryPrice ? (perShare / entryPrice) * 100 : 0;
               const total = perShare * qty;
 
+              // ✅ Color purely on profit/loss sign — no side-based bias
               const pnlUp = total >= 0;
               const pnlColor = pnlUp ? "text-green-600" : "text-red-600";
               const arrow = pnlUp ? "↗" : "↘";
