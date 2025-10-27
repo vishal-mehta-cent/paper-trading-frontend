@@ -16,7 +16,8 @@
 .gradient-text-animated {
   font-weight: bold;
   background: linear-gradient(90deg, #2378FF, #1EC8C8, #3CDE78, #FFA03C, #FF4646);
-  background-size: 400% 400%; /* makes the gradient move smoothly */
+  background-size: 400% 400%;
+  /* makes the gradient move smoothly */
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -26,7 +27,45 @@
 
 /* Keyframes for gradient animation */
 @keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.neurocrest-text {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 800;
+  background: linear-gradient(90deg,
+      #1e5cc4 0%,
+      /* Deep blue */
+      #00a4a6 25%,
+      /* Teal-green */
+      #59c36a 45%,
+      /* Soft green */
+      #f4b740 65%,
+      /* Yellow-orange */
+      #ef6c2c 85%,
+      /* Orange-red */
+      #d23b3b 100%
+      /* Soft red */
+    );
+
+  /* ✅ Cross-browser compatibility */
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+
+  /* Subtle depth similar to printed look
+  
+  
+  */
 }
