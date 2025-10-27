@@ -115,7 +115,7 @@ export default function LoginRegister({ onLoginSuccess }) {
             }}
           />
           <div className="flex flex-col">
-            <h1 className="gradient-text-animated text-4xl sm:text-5xl font-extrabold tracking-wide m-0 leading-tight text-emerald-400">
+            <h1 className="text-5xl font-extrabold bg-gradient-to-r from-[#00c6ff] via-[#ff7b00] to-[#ff2d55] bg-clip-text text-transparent">
               NEUROCREST
             </h1>
             <span className="mt-1 text-sm sm:text-base text-gray-600">
