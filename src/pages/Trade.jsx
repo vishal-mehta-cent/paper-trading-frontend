@@ -12,25 +12,25 @@ const API =
 export default function Trade({ username }) {
   const [tab, setTab] = useState("mylist");
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false); // ✅ NEW: track fetch state
-  const [allScripts, setAllScripts] = useState<any[]>([]); // ✅ cached scripts
-  const [watchlist, setWatchlist] = useState<string[]>([]);
-  const [quotes, setQuotes] = useState<Record<string, any>>({});
-  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
-  const [selectedQuote, setSelectedQuote] = useState<any>(null);
+  const [suggestions, setSuggestions] = useState([]);   // JS array
+  const [searching, setSearching] = useState(false);    // loading flag
+  const [allScripts, setAllScripts] = useState([]);     // cached scripts
+  const [watchlist, setWatchlist] = useState([]);
+  const [quotes, setQuotes] = useState({});
+  const [selectedSymbol, setSelectedSymbol] = useState(null);
+  const [selectedQuote, setSelectedQuote] = useState(null);
   const [totalFunds, setTotalFunds] = useState(0);
   const [availableFunds, setAvailableFunds] = useState(0);
 
   const [sellChecking, setSellChecking] = useState(false);
   const [sellConfirmOpen, setSellConfirmOpen] = useState(false);
   const [sellConfirmMsg, setSellConfirmMsg] = useState("");
-  const [sellPreviewData, setSellPreviewData] = useState<any>(null);
-  const [sellSymbol, setSellSymbol] = useState<string | null>(null);
+  const [sellPreviewData, setSellPreviewData] = useState(null);
+  const [sellSymbol, setSellSymbol] = useState(null);
 
-  const intervalRef = useRef<any>(null);
+  const intervalRef = useRef(null);
   const nav = useNavigate();
-  const sellPreviewGuardRef = useRef<Record<string, boolean>>({});
+  const sellPreviewGuardRef = useRef({});
   const who = username || localStorage.getItem("username") || "";
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function Trade({ username }) {
     preloadScripts();
   }, [username]);
 
-  // ✅ preload instrument list (use the correct endpoint under /search)
+  // preload instrument list
   function preloadScripts() {
     fetch(`${API}/search/scripts`)
       .then((r) => r.json())
@@ -73,7 +73,7 @@ export default function Trade({ username }) {
       });
   }
 
-  function handleRemoveFromWatchlist(symbol: string) {
+  function handleRemoveFromWatchlist(symbol) {
     fetch(`${API}/watchlist/${who}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -81,7 +81,7 @@ export default function Trade({ username }) {
     }).then(() => fetchWatchlist());
   }
 
-  // ✅ quotes refresher
+  // quotes refresher
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (!watchlist.length) return;
@@ -90,8 +90,8 @@ export default function Trade({ username }) {
       fetch(`${API}/quotes?symbols=${watchlist.join(",")}`)
         .then((r) => r.json())
         .then((arr) => {
-          const map: Record<string, any> = {};
-          (arr || []).forEach((q: any) => (map[q.symbol] = q));
+          const map = {};
+          (arr || []).forEach((q) => (map[q.symbol] = q));
           setQuotes(map);
         })
         .catch(() => {});
@@ -102,7 +102,7 @@ export default function Trade({ username }) {
     return () => clearInterval(intervalRef.current);
   }, [watchlist]);
 
-  // ✅ improved search logic — layered & case-insensitive
+  // improved search logic — layered & case-insensitive
   const debouncedQuery = useMemo(() => query.trim(), [query]);
 
   useEffect(() => {
@@ -112,13 +112,13 @@ export default function Trade({ username }) {
       return;
     }
 
-    // Small local instant matches (optional)
+    // local instant matches (optional)
     const localMatches = Array.isArray(allScripts)
       ? allScripts
-          .filter((s: any) => {
+          .filter((s) => {
             const q = debouncedQuery.toLowerCase();
             return (
-              s.symbol?.toLowerCase().includes(q) ||
+              (s.symbol || "").toLowerCase().includes(q) ||
               (s.name || "").toLowerCase().includes(q)
             );
           })
@@ -126,11 +126,11 @@ export default function Trade({ username }) {
       : [];
     setSuggestions(localMatches);
 
-    // Send a normalized query to backend (uppercase + no spaces)
+    // backend query (uppercase + no spaces)
     const qUpper = debouncedQuery.toUpperCase().replace(/\s+/g, "");
 
     const timer = setTimeout(() => {
-      setSearching(true); // ✅ show spinner row
+      setSearching(true);
       fetch(`${API}/search?q=${encodeURIComponent(qUpper)}`)
         .then((r) => r.json())
         .then((data) => {
@@ -139,22 +139,20 @@ export default function Trade({ username }) {
             return;
           }
 
-          // ✅ keep equities + derivatives; do NOT re-filter by raw substring
+          // keep equities + derivatives
           const allowedExchanges = ["NSE", "NFO", "BSE"];
-          const clean = data.filter((s: any) =>
+          const clean = data.filter((s) =>
             allowedExchanges.includes((s.exchange || "").toUpperCase())
           );
 
           // small stable sort
-          clean.sort((a: any, b: any) =>
-            (a.symbol || "").localeCompare(b.symbol || "")
-          );
+          clean.sort((a, b) => (a.symbol || "").localeCompare(b.symbol || ""));
 
-          // ⛔ IMPORTANT: don't apply another substring filter here.
+          // IMPORTANT: don't apply another substring filter here.
           setSuggestions(clean);
         })
         .catch(() => {
-          // leave suggestions as-is (localMatches) on error
+          // leave suggestions as-is on error
         })
         .finally(() => setSearching(false));
     }, 300);
@@ -162,11 +160,11 @@ export default function Trade({ username }) {
     return () => clearTimeout(timer);
   }, [debouncedQuery, allScripts]);
 
-  function handleSearch(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleSearch(e) {
     setQuery(e.target.value);
   }
 
-  function goDetail(sym: string) {
+  function goDetail(sym) {
     fetch(`${API}/quotes?symbols=${sym}`)
       .then((r) => r.json())
       .then((arr) => {
@@ -200,8 +198,8 @@ export default function Trade({ username }) {
     setSelectedSymbol(null);
   }
 
-  // ---- SELL preview flow ----
-  async function previewThenSell(sym: string, qty = 1, segment = "intraday") {
+  // SELL preview flow
+  async function previewThenSell(sym, qty = 1, segment = "intraday") {
     if (!who) {
       alert("Please log in first.");
       return;
@@ -264,15 +262,15 @@ export default function Trade({ username }) {
   }
 
   function handleSell() {
-    previewThenSell(selectedSymbol as string, 1, "intraday");
+    previewThenSell(selectedSymbol, 1, "intraday");
   }
 
-  // ✅ escape special chars before building the highlight regex
-  function escapeRegex(s: string) {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // escape special chars before building the highlight regex
+  function escapeRegex(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
-  function highlightMatch(text: string, q: string) {
+  function highlightMatch(text, q) {
     if (!q) return text;
     const safe = escapeRegex(q);
     const regex = new RegExp(`(${safe})`, "ig");
@@ -287,7 +285,7 @@ export default function Trade({ username }) {
     );
   }
 
-  const showDropdown = query.trim().length > 0; // ✅ keep open while typing
+  const showDropdown = query.trim().length > 0;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-700">
@@ -362,7 +360,7 @@ export default function Trade({ username }) {
               />
             </div>
 
-            {/* ✅ Show dropdown while typing, not only when there are results */}
+            {/* Show dropdown while typing, not only when there are results */}
             {showDropdown && (
               <ul className="bg-white rounded-lg shadow mt-2 max-h-60 overflow-auto z-50 relative">
                 {searching && (
