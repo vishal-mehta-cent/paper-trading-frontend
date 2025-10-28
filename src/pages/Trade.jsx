@@ -12,24 +12,25 @@ const API =
 export default function Trade({ username }) {
   const [tab, setTab] = useState("mylist");
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
-  const [allScripts, setAllScripts] = useState([]); // ✅ cached scripts
-  const [watchlist, setWatchlist] = useState([]);
-  const [quotes, setQuotes] = useState({});
-  const [selectedSymbol, setSelectedSymbol] = useState(null);
-  const [selectedQuote, setSelectedQuote] = useState(null);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false); // ✅ NEW: track fetch state
+  const [allScripts, setAllScripts] = useState<any[]>([]); // ✅ cached scripts
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [quotes, setQuotes] = useState<Record<string, any>>({});
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [selectedQuote, setSelectedQuote] = useState<any>(null);
   const [totalFunds, setTotalFunds] = useState(0);
   const [availableFunds, setAvailableFunds] = useState(0);
 
   const [sellChecking, setSellChecking] = useState(false);
   const [sellConfirmOpen, setSellConfirmOpen] = useState(false);
   const [sellConfirmMsg, setSellConfirmMsg] = useState("");
-  const [sellPreviewData, setSellPreviewData] = useState(null);
-  const [sellSymbol, setSellSymbol] = useState(null);
+  const [sellPreviewData, setSellPreviewData] = useState<any>(null);
+  const [sellSymbol, setSellSymbol] = useState<string | null>(null);
 
-  const intervalRef = useRef(null);
+  const intervalRef = useRef<any>(null);
   const nav = useNavigate();
-  const sellPreviewGuardRef = useRef({});
+  const sellPreviewGuardRef = useRef<Record<string, boolean>>({});
   const who = username || localStorage.getItem("username") || "";
 
   useEffect(() => {
@@ -72,7 +73,7 @@ export default function Trade({ username }) {
       });
   }
 
-  function handleRemoveFromWatchlist(symbol) {
+  function handleRemoveFromWatchlist(symbol: string) {
     fetch(`${API}/watchlist/${who}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -89,11 +90,11 @@ export default function Trade({ username }) {
       fetch(`${API}/quotes?symbols=${watchlist.join(",")}`)
         .then((r) => r.json())
         .then((arr) => {
-          const map = {};
-          (arr || []).forEach((q) => (map[q.symbol] = q));
+          const map: Record<string, any> = {};
+          (arr || []).forEach((q: any) => (map[q.symbol] = q));
           setQuotes(map);
         })
-        .catch(() => { });
+        .catch(() => {});
     };
 
     fetchQuotes();
@@ -107,20 +108,21 @@ export default function Trade({ username }) {
   useEffect(() => {
     if (!debouncedQuery) {
       setSuggestions([]);
+      setSearching(false);
       return;
     }
 
     // Small local instant matches (optional)
     const localMatches = Array.isArray(allScripts)
       ? allScripts
-        .filter((s) => {
-          const q = debouncedQuery.toLowerCase();
-          return (
-            s.symbol?.toLowerCase().includes(q) ||
-            (s.name || "").toLowerCase().includes(q)
-          );
-        })
-        .slice(0, 10)
+          .filter((s: any) => {
+            const q = debouncedQuery.toLowerCase();
+            return (
+              s.symbol?.toLowerCase().includes(q) ||
+              (s.name || "").toLowerCase().includes(q)
+            );
+          })
+          .slice(0, 10)
       : [];
     setSuggestions(localMatches);
 
@@ -128,6 +130,7 @@ export default function Trade({ username }) {
     const qUpper = debouncedQuery.toUpperCase().replace(/\s+/g, "");
 
     const timer = setTimeout(() => {
+      setSearching(true); // ✅ show spinner row
       fetch(`${API}/search?q=${encodeURIComponent(qUpper)}`)
         .then((r) => r.json())
         .then((data) => {
@@ -138,30 +141,32 @@ export default function Trade({ username }) {
 
           // ✅ keep equities + derivatives; do NOT re-filter by raw substring
           const allowedExchanges = ["NSE", "NFO", "BSE"];
-          const clean = data.filter((s) =>
+          const clean = data.filter((s: any) =>
             allowedExchanges.includes((s.exchange || "").toUpperCase())
           );
 
           // small stable sort
-          clean.sort((a, b) => (a.symbol || "").localeCompare(b.symbol || ""));
+          clean.sort((a: any, b: any) =>
+            (a.symbol || "").localeCompare(b.symbol || "")
+          );
 
           // ⛔ IMPORTANT: don't apply another substring filter here.
           setSuggestions(clean);
-
-          // helpful while testing
-          // console.log("q=", qUpper, "items:", clean.length, clean.slice(0, 5));
         })
-        .catch(() => { });
+        .catch(() => {
+          // leave suggestions as-is (localMatches) on error
+        })
+        .finally(() => setSearching(false));
     }, 300);
 
     return () => clearTimeout(timer);
   }, [debouncedQuery, allScripts]);
 
-  function handleSearch(e) {
+  function handleSearch(e: React.ChangeEvent<HTMLInputElement>) {
     setQuery(e.target.value);
   }
 
-  function goDetail(sym) {
+  function goDetail(sym: string) {
     fetch(`${API}/quotes?symbols=${sym}`)
       .then((r) => r.json())
       .then((arr) => {
@@ -196,7 +201,7 @@ export default function Trade({ username }) {
   }
 
   // ---- SELL preview flow ----
-  async function previewThenSell(sym, qty = 1, segment = "intraday") {
+  async function previewThenSell(sym: string, qty = 1, segment = "intraday") {
     if (!who) {
       alert("Please log in first.");
       return;
@@ -248,7 +253,7 @@ export default function Trade({ username }) {
       setSellPreviewData(data);
       setSellConfirmMsg(
         data?.message ||
-        `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
+          `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
       );
       setSellConfirmOpen(true);
     } catch (e) {
@@ -259,13 +264,19 @@ export default function Trade({ username }) {
   }
 
   function handleSell() {
-    previewThenSell(selectedSymbol, 1, "intraday");
+    previewThenSell(selectedSymbol as string, 1, "intraday");
   }
 
-  function highlightMatch(text, q) {
+  // ✅ escape special chars before building the highlight regex
+  function escapeRegex(s: string) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function highlightMatch(text: string, q: string) {
     if (!q) return text;
-    const regex = new RegExp(`(${q})`, "ig");
-    return text.split(regex).map((part, i) =>
+    const safe = escapeRegex(q);
+    const regex = new RegExp(`(${safe})`, "ig");
+    return String(text).split(regex).map((part, i) =>
       regex.test(part) ? (
         <span key={i} className="font-bold text-blue-600">
           {part}
@@ -275,6 +286,8 @@ export default function Trade({ username }) {
       )
     );
   }
+
+  const showDropdown = query.trim().length > 0; // ✅ keep open while typing
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-700">
@@ -296,10 +309,11 @@ export default function Trade({ username }) {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`pb-1 ${tab === t
-                  ? "text-blue-500 border-b-2 border-blue-500"
-                  : "text-gray-500"
-                  }`}
+                className={`pb-1 ${
+                  tab === t
+                    ? "text-blue-500 border-b-2 border-blue-500"
+                    : "text-gray-500"
+                }`}
               >
                 {t === "mylist" ? "My List" : "Must Watch"}
               </button>
@@ -347,25 +361,39 @@ export default function Trade({ username }) {
                 className="w-full pl-10 pr-4 py-2 rounded-lg text-gray-800"
               />
             </div>
-            {suggestions.length > 0 && (
-              <ul className="bg-white rounded-lg shadow mt-2 max-h-60 overflow-auto">
-                {suggestions.map((s, i) => (
-                  <li
-                    key={i}
-                    onClick={() => goDetail(s.symbol)}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                  >
-                    <div className="font-semibold">
-                      {highlightMatch(s.symbol, query)}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {highlightMatch(s.name, query)}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {(s.exchange || "NSE")} | {s.segment} | {s.instrument_type}
-                    </div>
+
+            {/* ✅ Show dropdown while typing, not only when there are results */}
+            {showDropdown && (
+              <ul className="bg-white rounded-lg shadow mt-2 max-h-60 overflow-auto z-50 relative">
+                {searching && (
+                  <li className="px-4 py-2 text-sm text-gray-500">Searching…</li>
+                )}
+
+                {!searching && suggestions.length === 0 && (
+                  <li className="px-4 py-2 text-sm text-gray-500">
+                    No matches. Keep typing…
                   </li>
-                ))}
+                )}
+
+                {!searching &&
+                  suggestions.map((s, i) => (
+                    <li
+                      key={`${s.symbol}-${s.exchange}-${i}`}
+                      onMouseDown={(e) => e.preventDefault()} // prevent input blur pre-click
+                      onClick={() => goDetail(s.symbol)}
+                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      <div className="font-semibold">
+                        {highlightMatch(s.symbol, query)}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {highlightMatch(s.name, query)}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {(s.exchange || "NSE")} | {s.segment} | {s.instrument_type}
+                      </div>
+                    </li>
+                  ))}
               </ul>
             )}
           </div>
@@ -397,8 +425,9 @@ export default function Trade({ username }) {
                     <div className="flex items-start space-x-2">
                       <div className="text-right">
                         <div
-                          className={`text-xl font-medium ${isPos ? "text-green-600" : "text-red-600"
-                            }`}
+                          className={`text-xl font-medium ${
+                            isPos ? "text-green-600" : "text-red-600"
+                          }`}
                         >
                           {q.price != null
                             ? Number(q.price).toLocaleString("en-IN")
@@ -407,10 +436,10 @@ export default function Trade({ username }) {
                         <div className="text-xs text-gray-600">
                           {q.change != null
                             ? `${isPos ? "+" : ""}${Number(q.change).toFixed(
-                              2
-                            )} (${isPos ? "+" : ""}${Number(
-                              q.pct_change || 0
-                            ).toFixed(2)}%)`
+                                2
+                              )} (${isPos ? "+" : ""}${Number(
+                                q.pct_change || 0
+                              ).toFixed(2)}%)`
                             : "--"}
                         </div>
                       </div>
