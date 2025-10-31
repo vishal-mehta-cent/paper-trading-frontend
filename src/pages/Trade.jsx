@@ -106,9 +106,18 @@ export default function Trade({ username }) {
     "JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","SEPT","OCT","NOV","DEC"
   ];
   const normMonth = (m) => (m === "SEPT" ? "SEP" : m || "");
+
+  // ⬇️ UPDATED: understands trailing CE/PE/FUT even with no month/strike (e.g., "tcsce")
   function parseOptionish(q) {
-    const Q = String(q || "").toUpperCase().replace(/\s+/g, "");
-    if (!Q) return { raw: "", underlying: "", year2: "", month: "", strike: "" };
+    const Qraw = String(q || "").toUpperCase().replace(/\s+/g, "");
+    if (!Qraw) return { raw: "", underlying: "", year2: "", month: "", strike: "", deriv: "" };
+
+    // detect trailing derivative token and strip it for parsing
+    const derivMatch = Qraw.match(/(CE|PE|FUT)$/);
+    const deriv = derivMatch ? derivMatch[1] : "";
+    const Q = deriv ? Qraw.slice(0, -deriv.length) : Qraw;
+
+    // find month token and its position
     let month = "", mIdx = -1;
     for (const m of MONTHS) {
       const idx = Q.indexOf(m);
@@ -116,15 +125,20 @@ export default function Trade({ username }) {
         month = normMonth(m); mIdx = idx;
       }
     }
-    const cepe = Q.match(/(\d+)(CE|PE)$/);
+
+    // strike: trailing digits before optional CE/PE (still fine if none)
     const tailNum = Q.match(/(\d+)(?!.*\d)/);
-    const strike = cepe ? cepe[1] : (tailNum ? tailNum[1] : "");
+    const strike = tailNum ? tailNum[1] : "";
+
+    // year2: 2 digits just before month (if present)
     let year2 = "";
     if (mIdx >= 0) {
       const beforeMonth = Q.slice(Math.max(0, mIdx - 4), mIdx);
       const y = beforeMonth.match(/(\d{2})$/);
       year2 = y ? y[1] : "";
     }
+
+    // underlying from the letters left of month/strike (digits removed)
     let underlying = Q;
     if (mIdx >= 0) {
       if (year2) {
@@ -136,9 +150,12 @@ export default function Trade({ username }) {
     } else if (tailNum) {
       underlying = Q.slice(0, tailNum.index);
     }
+    // if nothing matched, just keep the letters of Q (e.g., "TCS")
     underlying = underlying.replace(/[^A-Z]/g, "");
-    return { raw: Q, underlying, year2, month, strike };
+
+    return { raw: Qraw, underlying, year2, month, strike, deriv };
   }
+
   function buildSeeds({ underlying, year2, month }) {
     const seeds = new Set();
     if (!underlying && !month) return [];
@@ -153,15 +170,18 @@ export default function Trade({ username }) {
     }
     return Array.from(seeds);
   }
+
   const symbolField = (s) =>
     (s?.symbol || s?.tradingsymbol || "").toUpperCase().replace(/\s+/g, "");
   const allowedExchange = (s) =>
     ["NSE", "NFO", "BSE"].includes(String(s?.exchange || "").toUpperCase());
 
   async function backendSearchSmart(parts) {
-    const { underlying, month, strike } = parts;
+    const { underlying, month, strike, deriv } = parts;
     const seeds = buildSeeds(parts);
     let bag = [];
+
+    // Fetch all seeds and merge
     for (const seed of seeds) {
       try {
         const res = await fetch(`${API}/search?q=${encodeURIComponent(seed)}`);
@@ -169,14 +189,19 @@ export default function Trade({ username }) {
         if (Array.isArray(data)) bag = bag.concat(data);
       } catch {}
     }
+
+    // Dedupe by symbol field
     const seen = new Set();
     const merged = [];
     for (const s of bag) {
       if (!allowedExchange(s)) continue;
       const sym = symbolField(s);
       if (!sym || seen.has(sym)) continue;
-      seen.add(sym); merged.push(s);
+      seen.add(sym);
+      merged.push(s);
     }
+
+    // Filters
     let filtered = merged;
     if (month) filtered = filtered.filter((s) => symbolField(s).includes(month));
     if (underlying) filtered = filtered.filter((s) => symbolField(s).includes(underlying));
@@ -187,13 +212,24 @@ export default function Trade({ username }) {
         return m ? m[1].startsWith(strike) : sym.includes(strike);
       });
     }
-    if (!month && !strike && underlying) {
+
+    // ⬇️ NEW: if user typed CE/PE/FUT, keep only those contracts
+    if (deriv) {
+      filtered = filtered.filter((s) => {
+        const sym = symbolField(s);
+        return deriv === "FUT" ? sym.endsWith("FUT") : sym.endsWith(deriv);
+      });
+    }
+
+    // As a final fallback for plain text (no month/strike), do a simple contains
+    if (!month && !strike && underlying && !deriv) {
       filtered = merged.filter(
         (s) =>
           symbolField(s).includes(underlying) ||
           String(s.name || "").toUpperCase().includes(underlying)
       );
     }
+
     filtered.sort((a, b) => symbolField(a).localeCompare(symbolField(b)));
     return filtered.slice(0, 50);
   }
@@ -210,14 +246,22 @@ export default function Trade({ username }) {
     const timer = setTimeout(async () => {
       try {
         const results = await backendSearchSmart(parts);
+
+        // Local fallback if backend gave nothing
         let finalList = results;
         if ((!finalList || finalList.length === 0) && Array.isArray(allScripts) && allScripts.length) {
-          const { raw, underlying, month, strike } = parts;
+          const { raw, underlying, month, strike, deriv } = parts;
           finalList = allScripts
             .filter(allowedExchange)
             .filter((s) => {
               const sym = symbolField(s);
               const nm = String(s.name || "").toUpperCase();
+
+              // deriv-only searches like "TCSCE" or "TCSFUT"
+              if (deriv) {
+                if (!sym.endsWith(deriv)) return false;
+              }
+
               if (!month && !strike && underlying) return sym.includes(underlying) || nm.includes(underlying);
               if (!month && !strike && !underlying) return sym.includes(raw) || nm.includes(raw);
               if (underlying && !(sym.includes(underlying) || nm.includes(underlying))) return false;
