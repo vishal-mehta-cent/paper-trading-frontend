@@ -1,4 +1,4 @@
-// src/pages/Payments.jsx
+// frontend/src/pages/Payments.jsx
 import React, { useCallback, useMemo, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -88,100 +88,31 @@ function StripeCheckoutForm({ onSuccess, onError }) {
 export default function Payments() {
   const [tab, setTab] = useState("india"); // "india" | "upi" | "intl"
 
-  // Shared fields
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-
-  // ------ India: Razorpay ------
   const [amountInr, setAmountInr] = useState(199);
-  const [loadingRzp, setLoadingRzp] = useState(false);
 
-  const startRazorpay = async () => {
-    setLoadingRzp(true);
-    try {
-      const receipt = `order_${Date.now()}`;
-      const { ok, data } = await postJSON(`${API}/payments/razorpay/order`, {
-        amount_inr: Number(amountInr),
-        receipt,
-        customer_name: username || "",
-        customer_email: email || "",
-        customer_phone: phone || "",
-      });
-      if (!ok) throw new Error(data?.detail || "Failed to create order");
-      const opts = {
-        key: data.key_id,
-        amount: data.amount,
-        currency: data.currency,
-        name: "NeuroCrest",
-        description: `Order ${receipt}`,
-        order_id: data.order_id,
-        prefill: data.prefill || {},
-        method: { upi: true, netbanking: true, card: true, wallet: true },
-        upi: { flow: "intent" },
-        handler: function () {
-          alert("Payment processing. Confirmation will appear shortly.");
-        },
-        modal: { ondismiss: () => {} },
-      };
-      if (!window.Razorpay) {
-        alert(
-          "Razorpay SDK not found. Add <script src='https://checkout.razorpay.com/v1/checkout.js'></script> in index.html"
-        );
-        return;
-      }
-      const rzp = new window.Razorpay(opts);
-      rzp.open();
-    } catch (e) {
-      alert(e?.message || "Could not start Razorpay");
-    } finally {
-      setLoadingRzp(false);
-    }
-  };
-
-  // ------ UPI QR (raw UPI) ------
-  const [upiVpa, setUpiVpa] = useState("yourmerchant@icici"); // your receiving VPA
-  const [upiName, setUpiName] = useState("NeuroCrest");
-  const [upiAmount, setUpiAmount] = useState(199);
+  const [upiApp, setUpiApp] = useState("");
   const [upiQR, setUpiQR] = useState(null);
   const [loadingUpi, setLoadingUpi] = useState(false);
 
-  const genUpiQr = async () => {
-    setLoadingUpi(true);
-    try {
-      const tr = `upi_${Date.now()}`;
-      const { ok, data } = await postJSON(`${API}/payments/upi/qr`, {
-        pa: upiVpa,
-        pn: upiName,
-        amount_inr: Number(upiAmount),
-        tr,
-        tn: "NeuroCrest Payment",
-      });
-      if (!ok) throw new Error(data?.detail || "Failed to create UPI QR");
-      setUpiQR(data);
-    } catch (e) {
-      alert(e?.message || "Could not generate UPI QR");
-    } finally {
-      setLoadingUpi(false);
-    }
-  };
-
-  // ------ International: Stripe ------
+  // ------ International Stripe ------
   const [intlCurrency, setIntlCurrency] = useState("USD");
-  const [intlAmountMinor, setIntlAmountMinor] = useState(1999); // $19.99 -> 1999
+  const [intlAmountMinor, setIntlAmountMinor] = useState(1999);
   const [clientSecret, setClientSecret] = useState(null);
   const [publishableKey, setPublishableKey] = useState(null);
   const [loadingStripeInit, setLoadingStripeInit] = useState(false);
   const [stripeInitError, setStripeInitError] = useState("");
 
-  const initStripe = async () => {
+  const initStripe = async (currency = "usd") => {
     setLoadingStripeInit(true);
     setStripeInitError("");
     try {
-      const receipt = `intl_${Date.now()}`;
+      const receipt = `${currency}_${Date.now()}`;
       const { ok, data } = await postJSON(`${API}/payments/stripe/intent`, {
         amount_minor: Number(intlAmountMinor),
-        currency: intlCurrency,
+        currency,
         receipt,
         customer_email: email || undefined,
       });
@@ -202,21 +133,75 @@ export default function Payments() {
 
   const elementsOptions = useMemo(() => {
     if (!clientSecret) return null;
-    return {
-      clientSecret,
-      appearance: { theme: "stripe" },
-    };
+    return { clientSecret, appearance: { theme: "stripe" } };
   }, [clientSecret]);
+
+  // ---------- Generate UPI QR ----------
+  const genUpiQr = async () => {
+    setLoadingUpi(true);
+    try {
+      const tr = `upi_${Date.now()}`;
+      const { ok, data } = await postJSON(`${API}/payments/upi/qr`, {
+        pa: "9426817879.etb@icici",
+        pn: "NeuroCrest",
+        amount_inr: Number(amountInr),
+        tr,
+        tn: "NeuroCrest Payment",
+      });
+      if (!ok) throw new Error(data?.detail || "Failed to create UPI QR");
+      setUpiQR(data);
+    } catch (e) {
+      alert(e?.message || "Could not generate UPI QR");
+    } finally {
+      setLoadingUpi(false);
+    }
+  };
+
+  // ---------- Hybrid UPI Function ----------
+  const openUPI = async (app) => {
+    setUpiApp(app);
+    const uri = `upi://pay?pa=yourmerchant@icici&pn=NeuroCrest&am=${amountInr}&tn=Payment%20via%20${app}`;
+    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      // ✅ Directly open UPI app on mobile
+      window.location.href = uri;
+    } else {
+      // 💻 Desktop fallback
+      try {
+        const { ok, data } = await postJSON(`${API}/payments/upi/qr`, {
+          pa: "9426817879.etb@icici",
+          pn: "NeuroCrest",
+          amount_inr: Number(amountInr),
+          tr: `upi_${Date.now()}`,
+          tn: `UPI Payment via ${app}`,
+        });
+
+        if (ok) {
+          setUpiQR(data);
+          setTab("upi"); // Switch to UPI QR tab automatically
+          alert(
+            `Desktop browsers can’t open ${app} directly.\nA QR has been generated below.\nScan it with ${app} or any UPI app.`
+          );
+        } else {
+          // 2️⃣ Fallback – copy UPI link
+          await navigator.clipboard.writeText(uri);
+          alert("QR unavailable. UPI link copied to clipboard — paste in your UPI app.");
+        }
+      } catch (err) {
+        await navigator.clipboard.writeText(uri);
+        alert("Copied UPI payment link to clipboard.");
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-6">
       <div className="max-w-3xl mx-auto space-y-4">
-        {/* Back to Profile */}
         <BackButton to="/profile" />
-
         <h1 className="text-2xl font-bold">Payments</h1>
 
-        {/* User info for prefill */}
+        {/* Customer Info */}
         <Section title="Customer Details (optional but recommended)">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <input
@@ -248,7 +233,7 @@ export default function Payments() {
               tab === "india" ? "bg-blue-600 text-white" : "bg-white"
             }`}
           >
-            India (Razorpay)
+            India (UPI)
           </button>
           <button
             onClick={() => setTab("upi")}
@@ -268,92 +253,52 @@ export default function Payments() {
           </button>
         </div>
 
-        {/* INDIA: Razorpay */}
+        {/* INDIA: UPI */}
         {tab === "india" && (
-          <Section
-            title={
-              <span>
-                Pay in INR{" "}
+          <Section title="Pay via UPI Apps">
+            <label className="text-sm text-gray-600">Amount (₹)</label>
+            <input
+              type="number"
+              min="1"
+              className="border rounded px-3 py-2 w-full mb-3"
+              value={amountInr}
+              onChange={(e) => setAmountInr(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-3">
+              {["Google Pay", "PhonePe", "Paytm"].map((app) => (
                 <button
-                  type="button"
-                  onClick={startRazorpay}
-                  className="underline text-blue-600 hover:text-blue-700 cursor-pointer"
-                  title="Click to pay with Razorpay"
+                  key={app}
+                  onClick={() => openUPI(app)}
+                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
                 >
-                  (UPI / NetBanking / Card / Wallet)
+                  {app}
                 </button>
-              </span>
-            }
-          >
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-              <div>
-                <label className="text-sm text-gray-600">Amount (₹)</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="border rounded px-3 py-2 w-full"
-                  value={amountInr}
-                  onChange={(e) => setAmountInr(e.target.value)}
-                />
-              </div>
-              <div className="md:col-span-3">
-                <button
-                  onClick={startRazorpay}
-                  disabled={loadingRzp}
-                  className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {loadingRzp ? "Starting…" : `Pay ₹${Number(amountInr || 0)}`}
-                </button>
-              </div>
+              ))}
             </div>
-            <p className="text-xs text-gray-500">Requires Razorpay SDK in index.html.</p>
           </Section>
         )}
 
-        {/* UPI QR */}
+        {/* UPI QR (Direct) */}
         {tab === "upi" && (
-          <Section title="UPI QR (No gateway — manual reconciliation)">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div>
-                <label className="text-sm text-gray-600">Your VPA</label>
-                <input
-                  className="border rounded px-3 py-2 w-full"
-                  value={upiVpa}
-                  onChange={(e) => setUpiVpa(e.target.value)}
-                  placeholder="yourmerchant@icici"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-gray-600">Payee Name</label>
-                <input
-                  className="border rounded px-3 py-2 w-full"
-                  value={upiName}
-                  onChange={(e) => setUpiName(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm text-gray-600">Amount (₹)</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="border rounded px-3 py-2 w-full"
-                  value={upiAmount}
-                  onChange={(e) => setUpiAmount(e.target.value)}
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={genUpiQr}
-                  disabled={loadingUpi}
-                  className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {loadingUpi ? "Generating…" : "Generate QR"}
-                </button>
-              </div>
+          <Section title="UPI QR (Manual Scan)">
+            <div className="flex gap-3 items-end">
+              <input
+                type="number"
+                min="1"
+                className="border rounded px-3 py-2 w-full"
+                value={amountInr}
+                onChange={(e) => setAmountInr(e.target.value)}
+              />
+              <button
+                onClick={genUpiQr}
+                disabled={loadingUpi}
+                className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+              >
+                {loadingUpi ? "Generating…" : "Generate QR"}
+              </button>
             </div>
-
             {upiQR && (
-              <div className="flex flex-col items-center pt-3 space-y-2">
+              <div className="flex flex-col items-center mt-3 space-y-2">
                 <img
                   src={`data:image/png;base64,${upiQR.qr_b64}`}
                   alt="UPI QR"
@@ -362,54 +307,29 @@ export default function Payments() {
                 <a href={upiQR.upi_uri} className="text-blue-600 underline">
                   Open in UPI App
                 </a>
-                <p className="text-xs text-gray-500">
-                  Note: This direct UPI flow won’t auto-confirm on server. Prefer Razorpay for automated confirmations via webhooks.
-                </p>
               </div>
             )}
           </Section>
         )}
 
-        {/* INTERNATIONAL: Stripe */}
+        {/* International (Stripe) */}
         {tab === "intl" && (
-          <Section title="International (Cards / Apple Pay / Google Pay via Stripe)">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-              <div>
-                <label className="text-sm text-gray-600">Currency</label>
-                <select
-                  className="border rounded px-3 py-2 w-full"
-                  value={intlCurrency}
-                  onChange={(e) => setIntlCurrency(e.target.value)}
-                >
-                  <option>USD</option>
-                  <option>EUR</option>
-                  <option>GBP</option>
-                  <option>AUD</option>
-                  <option>CAD</option>
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm text-gray-600">
-                  Amount (minor units) — e.g., USD 19.99 → 1999
-                </label>
-                <input
-                  type="number"
-                  min="50"
-                  className="border rounded px-3 py-2 w-full"
-                  value={intlAmountMinor}
-                  onChange={(e) => setIntlAmountMinor(e.target.value)}
-                />
-              </div>
-              <div>
-                <button
-                  onClick={initStripe}
-                  disabled={loadingStripeInit}
-                  className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {loadingStripeInit ? "Preparing…" : "Initialize"}
-                </button>
-              </div>
-            </div>
+          <Section title="International Payments (Stripe)">
+            <label className="text-sm text-gray-600">Amount (minor units)</label>
+            <input
+              type="number"
+              min="1"
+              className="border rounded px-3 py-2 w-full mb-3"
+              value={intlAmountMinor}
+              onChange={(e) => setIntlAmountMinor(e.target.value)}
+            />
+            <button
+              onClick={() => initStripe("usd")}
+              disabled={loadingStripeInit}
+              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-60"
+            >
+              {loadingStripeInit ? "Preparing…" : "Initialize Stripe Payment"}
+            </button>
 
             {stripeInitError && (
               <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2 mt-2">
@@ -426,7 +346,7 @@ export default function Payments() {
                   />
                 </Elements>
                 <p className="mt-2 text-xs text-gray-500 text-center">
-                  You’ll be charged {(Number(intlAmountMinor) / 100).toFixed(2)} {intlCurrency}.
+                  You’ll be charged {(Number(intlAmountMinor) / 100).toFixed(2)} USD.
                 </p>
               </div>
             )}
