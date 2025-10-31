@@ -1,0 +1,107 @@
+.recommendations-container {
+  text-align: center;
+  padding: 20px;
+}
+
+.recommendation-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.rec-btn {
+  padding: 10px 25px;
+  border: 1.5px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rec-btn.active {
+  background-color: #2962ff;
+  color: white;
+  border-color: #2962ff;
+}
+
+.filters-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.filter-item label {
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #222;
+}
+
+.filter-item input,
+.filter-item select {
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.signals-section {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 60px; /* spacing between Active and Closed blocks */
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+
+.signals-column {
+  flex: 0 0 340px; /* fixed width for both columns */
+  text-align: center;
+}
+
+
+.subtext {
+  font-size: 12px;
+  color: #666;
+}
+
+.signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;  /* equal spacing between cards */
+  justify-items: center;
+  align-items: center;
+  margin-top: 10px;
+}
+
+
+.signal-card {
+  background-color: #66b3ff;
+  color: white;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  width: 140px;
+  height: 140px;
+  font-size: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.signal-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+
+
