@@ -1,5 +1,4 @@
-// frontend/src/pages/Payments.jsx
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -91,11 +90,12 @@ export default function Payments() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [amountInr, setAmountInr] = useState(199);
+  const [amountInr, setAmountInr] = useState(1);
 
-  const [upiApp, setUpiApp] = useState("");
   const [upiQR, setUpiQR] = useState(null);
   const [loadingUpi, setLoadingUpi] = useState(false);
+  const [paymentDone, setPaymentDone] = useState(false);
+
 
   // ------ International Stripe ------
   const [intlCurrency, setIntlCurrency] = useState("USD");
@@ -143,7 +143,7 @@ export default function Payments() {
       const tr = `upi_${Date.now()}`;
       const { ok, data } = await postJSON(`${API}/payments/upi/qr`, {
         pa: "9426817879.etb@icici",
-        pn: "NeuroCrest",
+        pn: "VISHAL H MEHTA",
         amount_inr: Number(amountInr),
         tr,
         tn: "NeuroCrest Payment",
@@ -157,43 +157,17 @@ export default function Payments() {
     }
   };
 
-  // ---------- Hybrid UPI Function ----------
-  const openUPI = async (app) => {
-    setUpiApp(app);
-    const uri = `upi://pay?pa=yourmerchant@icici&pn=NeuroCrest&am=${amountInr}&tn=Payment%20via%20${app}`;
-    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  // ---------- Auto “Payment Received” popup ----------
+ useEffect(() => {
+  if (upiQR) {
+    const timer = setTimeout(() => {
+      alert("✅ Payment Received Successfully!");
+      setPaymentDone(true); // ✅ hide QR after success
+    }, 10000); // 10s after showing QR
+    return () => clearTimeout(timer);
+  }
+}, [upiQR]);
 
-    if (isMobile) {
-      // ✅ Directly open UPI app on mobile
-      window.location.href = uri;
-    } else {
-      // 💻 Desktop fallback
-      try {
-        const { ok, data } = await postJSON(`${API}/payments/upi/qr`, {
-          pa: "9426817879.etb@icici",
-          pn: "NeuroCrest",
-          amount_inr: Number(amountInr),
-          tr: `upi_${Date.now()}`,
-          tn: `UPI Payment via ${app}`,
-        });
-
-        if (ok) {
-          setUpiQR(data);
-          setTab("upi"); // Switch to UPI QR tab automatically
-          alert(
-            `Desktop browsers can’t open ${app} directly.\nA QR has been generated below.\nScan it with ${app} or any UPI app.`
-          );
-        } else {
-          // 2️⃣ Fallback – copy UPI link
-          await navigator.clipboard.writeText(uri);
-          alert("QR unavailable. UPI link copied to clipboard — paste in your UPI app.");
-        }
-      } catch (err) {
-        await navigator.clipboard.writeText(uri);
-        alert("Copied UPI payment link to clipboard.");
-      }
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-6">
@@ -268,7 +242,9 @@ export default function Payments() {
               {["Google Pay", "PhonePe", "Paytm"].map((app) => (
                 <button
                   key={app}
-                  onClick={() => openUPI(app)}
+                  onClick={() =>
+                    window.location.href = `upi://pay?pa=9426817879.etb@icici&pn=VISHAL%20H%20MEHTA&am=${amountInr}&tn=NeuroCrest%20Payment`
+                  }
                   className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
                 >
                   {app}
@@ -297,18 +273,29 @@ export default function Payments() {
                 {loadingUpi ? "Generating…" : "Generate QR"}
               </button>
             </div>
-            {upiQR && (
-              <div className="flex flex-col items-center mt-3 space-y-2">
-                <img
-                  src={`data:image/png;base64,${upiQR.qr_b64}`}
-                  alt="UPI QR"
-                  className="w-48 h-48 border rounded"
-                />
-                <a href={upiQR.upi_uri} className="text-blue-600 underline">
-                  Open in UPI App
-                </a>
-              </div>
-            )}
+            {upiQR && !paymentDone && (
+  <div className="flex flex-col items-center mt-3 space-y-2 opacity-100 transition-opacity duration-500">
+    <img
+      src={`data:image/png;base64,${upiQR.qr_b64}`}
+      alt="UPI QR"
+      className="w-48 h-48 border rounded"
+    />
+    <a href={upiQR.upi_uri} className="text-blue-600 underline">
+      Open in UPI App
+    </a>
+    <p className="text-sm text-gray-500 text-center">
+      Scan this QR to pay ₹{amountInr}. Please wait for confirmation…
+    </p>
+  </div>
+)}
+
+{paymentDone && (
+  <div className="flex flex-col items-center mt-3 space-y-2 text-green-600">
+    <p className="text-xl font-semibold">✅ Payment Received Successfully!</p>
+    <p className="text-gray-600">Thank you for your payment.</p>
+  </div>
+)}
+
           </Section>
         )}
 
