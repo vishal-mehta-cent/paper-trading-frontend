@@ -1,84 +1,73 @@
+// -----------------------------------------------
 // src/lib/api.js
+// Universal API Base Configuration for NeuroCrest
+// -----------------------------------------------
 
-// Safely read the env at build time; no fragile ==/?: around the token.
+// ✅ Step 1: Safe environment variable read (Vite)
 const RAW =
   (typeof import.meta !== "undefined" && import.meta.env)
     ? import.meta.env.VITE_BACKEND_BASE_URL
     : undefined;
 
-// Canonical value
-export const API_BASE_URL =
-  (typeof RAW === "string" && RAW.trim() !== "")
-    ? RAW.trim()
-    : "http://127.0.0.1:8000";
+// ✅ Step 2: Detect browser environment
+const isBrowser =
+  typeof window !== "undefined" && typeof document !== "undefined";
 
-// Backward compatibility for existing imports:
-export const API_BASE = API_BASE_URL;
+// ✅ Step 3: Define all base URLs for each environment
+const DEFAULTS = {
+  localDev: "http://127.0.0.1:8000",         // Local FastAPI
+  emulator: "http://10.0.2.2:8000",          // Android Emulator
+  genymotion: "http://10.0.3.2:8000",        // Genymotion
+  production: "https://api.neurocrest.in",   // ✅ Render backend (live)
+};
 
-// Optional tiny fetch helper used across the app
+// ✅ Step 4: Compute the actual base URL dynamically
+function inferBase() {
+  // 1️⃣ .env overrides everything
+  if (RAW && typeof RAW === "string" && RAW.trim() !== "") {
+    return RAW.trim();
+  }
+
+  // 2️⃣ Browser-based inference
+  if (isBrowser) {
+    const host = window.location.hostname;
+
+    // Localhost or 127.0.0.1
+    if (host === "localhost" || host === "127.0.0.1") {
+      return DEFAULTS.localDev;
+    }
+
+    // Android Emulator
+    if (host.startsWith("10.0.2.")) return DEFAULTS.emulator;
+
+    // Genymotion Emulator
+    if (host.startsWith("10.0.3.")) return DEFAULTS.genymotion;
+
+    // Everything else (production domain)
+    return DEFAULTS.production;
+  }
+
+  // 3️⃣ Non-browser environments (SSR, Node)
+  return DEFAULTS.production;
+}
+
+// ✅ Step 5: Assign final BASE_URL
+export const API_BASE_URL = inferBase();
+export const API_BASE = API_BASE_URL; // Backward compatibility
+
+// ✅ Step 6: Basic fetch helper
 export async function api(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const url = `${API_BASE_URL}${path}`;
+  const res = await fetch(url, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });
   return res;
 }
 
-/**
- * frontend/src/lib/api.js
- * Auto-detect baseURL for API calls
- */
-
-const isBrowser =
-  typeof window !== "undefined" && typeof document !== "undefined";
-
-const hasImportMeta =
-  typeof import.meta !== "undefined" &&
-  import.meta &&
-  typeof import.meta.env !== "undefined";
-
-// 1. If `.env` has VITE_API_BASE_URL → always prefer it
-const ENV_BASE =
-  hasImportMeta && import.meta.env?.VITE_API_BASE_URL
-    ? String(import.meta.env.VITE_API_BASE_URL).trim()
-    : "";
-
-// 2. Fallbacks
-const DEFAULTS = {
-  localDev: "http://localhost:8000",   // when running frontend locally
-  emulator: "http://10.0.2.2:8000",    // Android Studio emulator
-  genymotion: "http://10.0.3.2:8000",  // Genymotion emulator
-  production: "https://neurocrest.in", // deployed backend
-};
-
-// 3. Detect best base URL
-function inferBase() {
-  if (ENV_BASE) return ENV_BASE;
-
-  if (isBrowser) {
-    const host = window.location.hostname;
-
-    // Local dev on browser
-    if (host === "localhost" || host === "127.0.0.1") return DEFAULTS.localDev;
-
-    // Android Emulator check
-    if (host.startsWith("10.0.2.")) return DEFAULTS.emulator;
-
-    // Genymotion check
-    if (host.startsWith("10.0.3.")) return DEFAULTS.genymotion;
-
-    // Default → production API
-    return DEFAULTS.production;
-  }
-
-  // Server-side rendering or fallback
-  return DEFAULTS.production;
-}
-
-const BASE_URL = inferBase();
-
-async function apiFetch(path, options = {}) {
-  const url = `${BASE_URL}${path}`;
+// ✅ Step 7: JSON fetch helper (throws detailed error if fails)
+export async function apiFetch(path, options = {}) {
+  const url = `${API_BASE_URL}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -93,4 +82,7 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
-export { BASE_URL, apiFetch };
+// ✅ Step 8: Debug log (helps verify in browser console)
+if (isBrowser) {
+  console.log("🌐 NeuroCrest API Base URL →", API_BASE_URL);
+}
