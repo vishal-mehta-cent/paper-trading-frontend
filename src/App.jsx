@@ -40,7 +40,8 @@ import ModifyOrderPage from "./pages/ModifyOrderPage";
 import ProfileDetail from "./pages/ProfileDetail";
 import Payments from "./pages/Payments.jsx";
 import AddToPosition from "./pages/AddToPosition";
-
+import { startHeartbeat } from "./lib/heartbeat";
+startHeartbeat();
 /** Fixed logo shown on every non-auth page (rendered to body via portal) */
 function RouteAwareTopRightLogo() {
   const { pathname } = useLocation();
