@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import "./Recommendations.css";
+import SignalCard from "../components/SignalCard"; // ✅ added for live chart component
+import BackButton from "../components/BackButton";
 
 export default function Recommendations() {
   const [activeType, setActiveType] = useState("Intraday");
@@ -55,10 +57,35 @@ export default function Recommendations() {
           <h3>Active Signals</h3>
           <p className="subtext">(Latest on top)</p>
           <div className="signal-grid">
-            <div className="signal-card">Card 1</div>
-            <div className="signal-card">Card 2</div>
-            <div className="signal-card">Card 3</div>
-            <div className="signal-card">Card 4</div>
+            {/* ✅ Replaced static boxes with live chart cards */}
+            <SignalCard
+              script="TCS"
+              confidence={87}
+              alertType="Breakout"
+              description="Crossing resistance near 4200"
+              livePriceFeed={true}
+            />
+            <SignalCard
+              script="RELIANCE"
+              confidence={75}
+              alertType="Momentum"
+              description="Rising above 2400 zone"
+              livePriceFeed={true}
+            />
+            <SignalCard
+              script="INFY"
+              confidence={63}
+              alertType="Reversal"
+              description="Support holding at 1450"
+              livePriceFeed={true}
+            />
+            <SignalCard
+              script="HDFCBANK"
+              confidence={92}
+              alertType="Breakout"
+              description="Testing resistance at 1550"
+              livePriceFeed={true}
+            />
           </div>
         </div>
 
@@ -76,6 +103,7 @@ export default function Recommendations() {
 
   return (
     <div className="recommendations-container">
+      <BackButton to="/menu" />
       <h2>Recommendations</h2>
 
       {/* --- Tabs --- */}
