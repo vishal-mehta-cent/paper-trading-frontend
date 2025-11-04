@@ -27,6 +27,15 @@ const postJSON = async (url, body) => {
   return { ok: res.ok, status: res.status, data };
 };
 
+const getJSON = async (url) => {
+  const res = await fetch(url);
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {}
+  return { ok: res.ok, status: res.status, data };
+};
+
 const Section = ({ title, children }) => (
   <div className="bg-white rounded-xl shadow p-4 space-y-3">
     <h3 className="text-lg font-semibold">{title}</h3>
@@ -98,13 +107,15 @@ export default function Payments() {
   const [upiQR, setUpiQR] = useState(null);
   const [loadingUpi, setLoadingUpi] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
+  const [transactionRef, setTransactionRef] = useState(null);
 
   // ---------- Generate UPI QR ----------
   const genUpiQr = async () => {
     setLoadingUpi(true);
     try {
       const tr = `upi_${Date.now()}`;
-      const { ok, data } = await postJSON(`${API}/payments/upi/qr`, {
+      setTransactionRef(tr);
+      const { ok, data } = await postJSON(`${API}/payments/upi/init`, {
         pa: "9426817879.etb@icici",
         pn: "VISHAL H MEHTA",
         amount_inr: Number(amountInr),
@@ -113,6 +124,7 @@ export default function Payments() {
       });
       if (!ok) throw new Error(data?.detail || "Failed to create UPI QR");
       setUpiQR(data);
+      setPaymentDone(false);
     } catch (e) {
       alert(e?.message || "Could not generate UPI QR");
     } finally {
@@ -120,16 +132,23 @@ export default function Payments() {
     }
   };
 
-  // ---------- Auto “Payment Received” popup ----------
+  // ---------- Poll backend for payment status ----------
   useEffect(() => {
-    if (upiQR) {
-      const timer = setTimeout(() => {
+    if (!transactionRef) return;
+    let interval = null;
+
+    const checkStatus = async () => {
+      const { ok, data } = await getJSON(`${API}/payments/upi/status/${transactionRef}`);
+      if (ok && data.status === "success") {
+        clearInterval(interval);
         alert("✅ Payment Received Successfully!");
         setPaymentDone(true);
-      }, 10000);
-      return () => clearTimeout(timer);
-    }
-  }, [upiQR]);
+      }
+    };
+
+    interval = setInterval(checkStatus, 5000); // poll every 5 seconds
+    return () => clearInterval(interval);
+  }, [transactionRef]);
 
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-6">
@@ -201,8 +220,7 @@ export default function Payments() {
                   Open in UPI App
                 </a>
                 <p className="text-sm text-gray-500 text-center">
-                  Scan this QR to pay ₹{amountInr}. Please wait for
-                  confirmation…
+                  Scan this QR to pay ₹{amountInr}. Please wait for confirmation…
                 </p>
               </div>
             )}
