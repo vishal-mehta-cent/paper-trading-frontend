@@ -8,7 +8,10 @@ import {
 } from "@stripe/react-stripe-js";
 import BackButton from "../components/BackButton";
 
-const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
+// ✅ Auto-detect correct backend
+const API =
+  import.meta.env.VITE_BACKEND_BASE_URL?.trim() ||
+  "https://api.neurocrest.in";
 
 // ------------------ helpers ------------------
 const postJSON = async (url, body) => {
@@ -85,7 +88,7 @@ function StripeCheckoutForm({ onSuccess, onError }) {
 
 // ================== MAIN PAGE ==================
 export default function Payments() {
-  const [tab, setTab] = useState("india"); // "india" | "upi" | "intl"
+  const [tab, setTab] = useState("upi");
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -95,46 +98,6 @@ export default function Payments() {
   const [upiQR, setUpiQR] = useState(null);
   const [loadingUpi, setLoadingUpi] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
-
-
-  // ------ International Stripe ------
-  const [intlCurrency, setIntlCurrency] = useState("USD");
-  const [intlAmountMinor, setIntlAmountMinor] = useState(1999);
-  const [clientSecret, setClientSecret] = useState(null);
-  const [publishableKey, setPublishableKey] = useState(null);
-  const [loadingStripeInit, setLoadingStripeInit] = useState(false);
-  const [stripeInitError, setStripeInitError] = useState("");
-
-  const initStripe = async (currency = "usd") => {
-    setLoadingStripeInit(true);
-    setStripeInitError("");
-    try {
-      const receipt = `${currency}_${Date.now()}`;
-      const { ok, data } = await postJSON(`${API}/payments/stripe/intent`, {
-        amount_minor: Number(intlAmountMinor),
-        currency,
-        receipt,
-        customer_email: email || undefined,
-      });
-      if (!ok) throw new Error(data?.detail || "Stripe init failed");
-      setClientSecret(data.clientSecret);
-      setPublishableKey(data.publishableKey);
-    } catch (e) {
-      setStripeInitError(e?.message || "Failed to initialize Stripe");
-    } finally {
-      setLoadingStripeInit(false);
-    }
-  };
-
-  const stripePromise = useMemo(() => {
-    if (!publishableKey) return null;
-    return loadStripe(publishableKey);
-  }, [publishableKey]);
-
-  const elementsOptions = useMemo(() => {
-    if (!clientSecret) return null;
-    return { clientSecret, appearance: { theme: "stripe" } };
-  }, [clientSecret]);
 
   // ---------- Generate UPI QR ----------
   const genUpiQr = async () => {
@@ -158,16 +121,15 @@ export default function Payments() {
   };
 
   // ---------- Auto “Payment Received” popup ----------
- useEffect(() => {
-  if (upiQR) {
-    const timer = setTimeout(() => {
-      alert("✅ Payment Received Successfully!");
-      setPaymentDone(true); // ✅ hide QR after success
-    }, 10000); // 10s after showing QR
-    return () => clearTimeout(timer);
-  }
-}, [upiQR]);
-
+  useEffect(() => {
+    if (upiQR) {
+      const timer = setTimeout(() => {
+        alert("✅ Payment Received Successfully!");
+        setPaymentDone(true);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [upiQR]);
 
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-6">
@@ -175,7 +137,6 @@ export default function Payments() {
         <BackButton to="/profile" />
         <h1 className="text-2xl font-bold">Payments</h1>
 
-        {/* Customer Info */}
         <Section title="Customer Details (optional but recommended)">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <input
@@ -199,16 +160,7 @@ export default function Payments() {
           </div>
         </Section>
 
-        {/* Tabs */}
         <div className="flex gap-2">
-          <button
-            onClick={() => setTab("india")}
-            className={`px-4 py-2 rounded ${
-              tab === "india" ? "bg-blue-600 text-white" : "bg-white"
-            }`}
-          >
-            India (UPI)
-          </button>
           <button
             onClick={() => setTab("upi")}
             className={`px-4 py-2 rounded ${
@@ -217,44 +169,8 @@ export default function Payments() {
           >
             UPI QR (Direct)
           </button>
-          <button
-            onClick={() => setTab("intl")}
-            className={`px-4 py-2 rounded ${
-              tab === "intl" ? "bg-blue-600 text-white" : "bg-white"
-            }`}
-          >
-            International (Stripe)
-          </button>
         </div>
 
-        {/* INDIA: UPI */}
-        {tab === "india" && (
-          <Section title="Pay via UPI Apps">
-            <label className="text-sm text-gray-600">Amount (₹)</label>
-            <input
-              type="number"
-              min="1"
-              className="border rounded px-3 py-2 w-full mb-3"
-              value={amountInr}
-              onChange={(e) => setAmountInr(e.target.value)}
-            />
-            <div className="flex flex-wrap gap-3">
-              {["Google Pay", "PhonePe", "Paytm"].map((app) => (
-                <button
-                  key={app}
-                  onClick={() =>
-                    window.location.href = `upi://pay?pa=9426817879.etb@icici&pn=VISHAL%20H%20MEHTA&am=${amountInr}&tn=NeuroCrest%20Payment`
-                  }
-                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-                >
-                  {app}
-                </button>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* UPI QR (Direct) */}
         {tab === "upi" && (
           <Section title="UPI QR (Manual Scan)">
             <div className="flex gap-3 items-end">
@@ -273,68 +189,30 @@ export default function Payments() {
                 {loadingUpi ? "Generating…" : "Generate QR"}
               </button>
             </div>
+
             {upiQR && !paymentDone && (
-  <div className="flex flex-col items-center mt-3 space-y-2 opacity-100 transition-opacity duration-500">
-    <img
-      src={`data:image/png;base64,${upiQR.qr_b64}`}
-      alt="UPI QR"
-      className="w-48 h-48 border rounded"
-    />
-    <a href={upiQR.upi_uri} className="text-blue-600 underline">
-      Open in UPI App
-    </a>
-    <p className="text-sm text-gray-500 text-center">
-      Scan this QR to pay ₹{amountInr}. Please wait for confirmation…
-    </p>
-  </div>
-)}
-
-{paymentDone && (
-  <div className="flex flex-col items-center mt-3 space-y-2 text-green-600">
-    <p className="text-xl font-semibold">✅ Payment Received Successfully!</p>
-    <p className="text-gray-600">Thank you for your payment.</p>
-  </div>
-)}
-
-          </Section>
-        )}
-
-        {/* International (Stripe) */}
-        {tab === "intl" && (
-          <Section title="International Payments (Stripe)">
-            <label className="text-sm text-gray-600">Amount (minor units)</label>
-            <input
-              type="number"
-              min="1"
-              className="border rounded px-3 py-2 w-full mb-3"
-              value={intlAmountMinor}
-              onChange={(e) => setIntlAmountMinor(e.target.value)}
-            />
-            <button
-              onClick={() => initStripe("usd")}
-              disabled={loadingStripeInit}
-              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-60"
-            >
-              {loadingStripeInit ? "Preparing…" : "Initialize Stripe Payment"}
-            </button>
-
-            {stripeInitError && (
-              <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2 mt-2">
-                {stripeInitError}
+              <div className="flex flex-col items-center mt-3 space-y-2">
+                <img
+                  src={`data:image/png;base64,${upiQR.qr_b64}`}
+                  alt="UPI QR"
+                  className="w-48 h-48 border rounded"
+                />
+                <a href={upiQR.upi_uri} className="text-blue-600 underline">
+                  Open in UPI App
+                </a>
+                <p className="text-sm text-gray-500 text-center">
+                  Scan this QR to pay ₹{amountInr}. Please wait for
+                  confirmation…
+                </p>
               </div>
             )}
 
-            {publishableKey && clientSecret && (
-              <div className="mt-3">
-                <Elements stripe={stripePromise} options={elementsOptions}>
-                  <StripeCheckoutForm
-                    onSuccess={() => alert("✅ Payment successful")}
-                    onError={(m) => alert(m)}
-                  />
-                </Elements>
-                <p className="mt-2 text-xs text-gray-500 text-center">
-                  You’ll be charged {(Number(intlAmountMinor) / 100).toFixed(2)} USD.
+            {paymentDone && (
+              <div className="flex flex-col items-center mt-3 space-y-2 text-green-600">
+                <p className="text-xl font-semibold">
+                  ✅ Payment Received Successfully!
                 </p>
+                <p className="text-gray-600">Thank you for your payment.</p>
               </div>
             )}
           </Section>
