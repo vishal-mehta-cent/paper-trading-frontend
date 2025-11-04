@@ -137,14 +137,18 @@ export default function Payments() {
     if (!transactionRef) return;
     let interval = null;
 
-    const checkStatus = async () => {
-      const { ok, data } = await getJSON(`${API}/payments/upi/status/${transactionRef}`);
-      if (ok && data.status === "success") {
-        clearInterval(interval);
-        alert("✅ Payment Received Successfully!");
-        setPaymentDone(true);
-      }
-    };
+const checkStatus = async () => {
+  const { ok, data } = await getJSON(`${API}/payments/upi/status/${transactionRef}`);
+  if (ok && data.status === "success") {
+    clearInterval(interval);
+    alert("✅ Payment Received Successfully!");
+    setPaymentDone(true);
+  } else if (!ok && data?.detail === "Transaction not found") {
+    console.warn("Transaction expired or not found.");
+    clearInterval(interval);
+  }
+};
+
 
     interval = setInterval(checkStatus, 5000); // poll every 5 seconds
     return () => clearInterval(interval);
