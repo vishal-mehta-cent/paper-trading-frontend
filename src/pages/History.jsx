@@ -5,6 +5,7 @@ import { moneyINR } from "../utils/format";
 import { NotebookPen, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
+import HeaderBackRow from "../components/HeaderBackRow";
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
 
@@ -215,7 +216,7 @@ export default function History({ username }) {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      <BackButton to="/profile" />
+      <HeaderBackRow backTo="/profile" />
       <h2 className="text-2xl font-bold text-center mb-4">History</h2>
 
       {/* NEW: Filter + Download bar */}
