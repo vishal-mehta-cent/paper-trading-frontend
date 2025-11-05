@@ -5,7 +5,6 @@ import { ClipboardList, Search, Briefcase, User, X, Clock } from "lucide-react";
 import BackButton from "../components/BackButton";
 import { toast } from "react-toastify";
 import useOpenTrades from "../hooks/useOpenTrades";
-import HeaderBackRow from "../components/HeaderBackRow";
 
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
@@ -474,30 +473,14 @@ export default function Orders({ username }) {
 
   // ---------- UI ----------
   return (
-<div className="sticky top-0 z-50 p-4 bg-white rounded-b-2xl shadow">
-  {/* Back row (same vertical position as Trade) */}
-  <HeaderBackRow>
-    <div className="flex items-center justify-center gap-10">
-      <div className="flex flex-col items-center cursor-pointer" onClick={() => nav("/portfolio")}>
-        <Briefcase size={22} className="text-gray-600 hover:text-blue-600" />
-        <span className="text-xs text-gray-500">Portfolio</span>
-      </div>
-      <div className="flex flex-col items-center cursor-pointer" onClick={() => nav("/history")}>
-        <Clock size={22} className="text-gray-600 hover:text-blue-600" />
-        <span className="text-xs text-gray-500">History</span>
-      </div>
-      <div className="flex flex-col items-center cursor-pointer" onClick={() => nav("/profile")}>
-        <User size={22} className="text-gray-600 hover:text-blue-600" />
-        <span className="text-xs text-gray-500">Profile</span>
-      </div>
-    </div>
-  </HeaderBackRow>
+    <div className="relative min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+      <BackButton to="/menu" />
 
-  {/* Page title below, unchanged */}
-  <div className="mt-2 flex justify-center">
-    <h1 className="text-2xl font-serif text-gray-800">Orders</h1>
-  </div>
-</div>
+      <div className="p-4">
+        <h2 className="text-2xl font-bold text-center text-gray-700 dark:text-white mb-10">
+          Orders
+        </h2>
+
         {/* ===== Tabs ===== */}
         <div className="sticky flex justify-center mb-4 space-x-6">
           {["open", "positions"].map((t) => (
@@ -771,6 +754,22 @@ export default function Orders({ username }) {
           </div>
         </div>
       )}
+
+      {/* Floating Icons */}
+      <div className="absolute right-5 top-20 flex items-center space-x-4 z-50">
+        <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/portfolio")}>
+          <Briefcase size={22} className="text-gray-600 dark:text-white hover:text-blue-600" />
+          <span className="text-xs text-gray-500 dark:text-white">Portfolio</span>
+        </div>
+        <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/history")}>
+          <Clock size={22} className="text-gray-600 hover:text-blue-600" />
+          <span className="text-xs text-gray-500">History</span>
+        </div>
+        <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/profile")}>
+          <User size={22} className="text-gray-600 dark:text-white hover:text-blue-600" />
+          <span className="text-xs text-gray-500 dark:text-white">Profile</span>
+        </div>
+      </div>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-800 p-2 flex justify-around z-40 border-t border-gray-700">
