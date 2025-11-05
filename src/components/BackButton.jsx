@@ -1,18 +1,22 @@
 // src/components/BackButton.jsx
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
-export default function BackButton({ to }) {
+export default function BackButton({ to, inline = true, className = "" }) {
   const nav = useNavigate();
+  const base = "flex items-center gap-1 text-gray-700 hover:text-blue-600 text-sm";
+  const pos  = inline ? "" : "absolute top-2 left-2";
+  const cls  = `${base} ${pos} ${className}`.trim();
 
+  if (to) return (
+    <Link to={to} className={cls} aria-label="Back">
+      <ArrowLeft size={18} /><span>Back</span>
+    </Link>
+  );
   return (
-    <button
-      onClick={() => (to ? nav(to) : nav(-1))}
-      className="absolute top-4 left-4 flex items-center text-gray-600 hover:text-blue-600"
-    >
-      <ArrowLeft size={20} className="mr-1" />
-      <span className="text-sm font-medium">Back</span>
+    <button onClick={() => nav(-1)} className={cls} aria-label="Back">
+      <ArrowLeft size={18} /><span>Back</span>
     </button>
   );
 }
