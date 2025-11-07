@@ -4,6 +4,8 @@ import { Search, ClipboardList, User, Briefcase, Clock } from "lucide-react";
 import ScriptDetailsModal from "../components/ScriptDetailsModal";
 import BackButton from "../components/BackButton";
 import { moneyINR } from "../utils/format";
+import ChartLauncher from "../components/ChartLauncher";
+
 
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
@@ -431,6 +433,9 @@ export default function Trade({ username }) {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-700">
+      {/* Chart launcher (captures global open-chart events) */}
+      <ChartLauncher />
+
       {/* Header */}
       <div className="sticky top-0 z-50 p-4 bg-white rounded-b-2xl shadow relative">
         <BackButton to="/menu" />
