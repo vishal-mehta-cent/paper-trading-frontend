@@ -3,9 +3,15 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
+  "packageManager": "npm@10.9.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "vercel-build": "vite build",
     "preview": "vite preview",
     "postinstall": "node -e \"try{require('fs').chmodSync('node_modules/.bin/vite',0o755)}catch(e){}\""
   },
@@ -35,8 +41,5 @@
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
     "vite": "^5.4.10"
-  },
-  "engines": {
-    "node": ">=20"
   }
 }
