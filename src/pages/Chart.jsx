@@ -463,11 +463,13 @@ export default function ChartPage() {
 
   const mainRef = useRef(null);
   const overlayRef = useRef(null);
+  const volumeRef = useRef(null);            // ✅ separate volume pane
   const oscRef = useRef(null);
   const mainChart = useRef(null);
+  const volumeChart = useRef(null);          // ✅ separate volume chart ref
   const oscChart = useRef(null);
   const priceSeries = useRef(null);
-  const volSeries = useRef(null);
+  const volSeries = useRef(null);            // ✅ series on volume chart
 
   // ▶ INDICATORS — series managers
   const indSeriesMain = useRef({});
@@ -568,13 +570,38 @@ export default function ChartPage() {
 
   const applySeriesData = useCallback((t, rows) => {
     const dataToUse = mapDataForType(t, rows);
+
     if (t === "hist" || t === "line" || t === "linemk" || t === "step" || t === "area" || t === "baseline") {
-      priceSeries.current?.setData(dataToUse.map(d => ({ time: d.time, value: d.close })));
+      priceSeries.current?.setData(
+        dataToUse.map(d => ({ time: d.time, value: d.close }))
+      );
     } else {
-      priceSeries.current?.setData(dataToUse.map(d => ({ time: d.time, open: d.open, high: d.high, low: d.low, close: d.close })));
+      priceSeries.current?.setData(
+        dataToUse.map(d => ({
+          time: d.time,
+          open: d.open,
+          high: d.high,
+          low: d.low,
+          close: d.close,
+        }))
+      );
     }
-    volSeries.current?.setData(dataToUse.map(d => ({ time: d.time, value: d.volume ?? 0 })));
+
+    // ✅ Volume histogram on the SEPARATE volume pane
+    if (volSeries.current) {
+      volSeries.current.setData(
+        dataToUse.map((d, i) => ({
+          time: d.time,
+          value: d.volume ?? 0,
+          color:
+            d.close >= (dataToUse[i - 1]?.close ?? d.open)
+              ? "rgba(34,197,94,0.6)"   // green
+              : "rgba(239,68,68,0.6)",  // red
+        }))
+      );
+    }
   }, []);
+
 
   const tryFetchOlder = useCallback(async (oldest) => {
     const qs = [
@@ -636,11 +663,12 @@ export default function ChartPage() {
   /* ---------------- Build charts ---------------- */
   useEffect(() => {
     if (mainChart.current) { try { mainChart.current.remove(); } catch {} mainChart.current = null; }
+    if (volumeChart.current) { try { volumeChart.current.remove(); } catch {} volumeChart.current = null; }
     if (oscChart.current)  { try { oscChart.current.remove();  } catch {} oscChart.current  = null; }
 
     const main = createChart(mainRef.current, {
       width: mainRef.current.clientWidth,
-      height: Math.max(320, Math.floor((window.innerHeight - HEADER_H) * 0.68)),
+      height: Math.max(320, Math.floor((window.innerHeight - HEADER_H) * 0.6)),
       layout: { textColor: "#222", background: { type: "Solid", color: "#ffffff" } },
       grid: { vertLines: { color: "rgba(42,46,57,0.1)" }, horzLines: { color: "rgba(42,46,57,0.1)" } },
       crosshair: { mode: CrosshairMode.Normal },
@@ -652,7 +680,6 @@ export default function ChartPage() {
         tickMarkFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t) : "",
         rightOffset: 5,
         barSpacing: 7,
-        // left-scroll friendliness
         fixLeftEdge: false,
         allowShiftVisibleRangeOnWhitespaceReplacement: true,
         shiftVisibleRangeOnNewBar: true,
@@ -697,29 +724,44 @@ export default function ChartPage() {
       series = main.addHistogramSeries({ base: 0 });
     }
 
-    const vol = main.addHistogramSeries({
-      priceScaleId: "",
+    // ✅ Separate VOLUME chart below main
+    const vol = createChart(volumeRef.current, {
+      width: volumeRef.current.clientWidth,
+      height: Math.max(120, Math.floor((window.innerHeight - HEADER_H) * 0.18)),
+      layout: { textColor: "#222", background: { type: "Solid", color: "#ffffff" } },
+      grid: { vertLines: { color: "rgba(42,46,57,0.08)" }, horzLines: { color: "rgba(42,46,57,0.08)" } },
+      rightPriceScale: { borderVisible: false },
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: false,
+        tickMarkFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t) : "",
+      },
+      crosshair: { mode: CrosshairMode.Normal },
+      localization: {
+        timeFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t, true) : "",
+      },
+    });
+
+    const volHist = vol.addHistogramSeries({
       priceFormat: { type: "volume" },
-      color: "rgba(31, 119, 180, 0.5)",
-      lineWidth: 1,
       priceLineVisible: false,
-      overlay: true,
-      scaleMargins: { top: 0.8, bottom: 0 },
+      base: 0,
     });
 
     mainChart.current = main;
+    volumeChart.current = vol;
     priceSeries.current = series;
-    volSeries.current = vol;
+    volSeries.current = volHist;
 
     if (Array.isArray(candles) && candles.length) {
       applySeriesData(t, candles);
-      // small negative scroll keeps a little whitespace to the right
       requestAnimationFrame(() => main.timeScale().scrollToPosition(-10, false));
     }
 
     const osc = createChart(oscRef.current, {
       width: oscRef.current.clientWidth,
-      height: Math.max(200, Math.floor((window.innerHeight - HEADER_H) * 0.32) - 8),
+      height: Math.max(180, Math.floor((window.innerHeight - HEADER_H) * 0.22) - 8),
       layout: { textColor: "#222", background: { type: "Solid", color: "#ffffff" } },
       grid: { vertLines: { color: "rgba(42,46,57,0.1)" }, horzLines: { color: "rgba(42,46,57,0.1)" } },
       rightPriceScale: { borderVisible: false },
@@ -740,6 +782,7 @@ export default function ChartPage() {
     const sync = () => {
       const lr = main.timeScale().getVisibleLogicalRange();
       if (!lr || lr.from == null || lr.to == null) return;
+      try { vol.timeScale().setVisibleLogicalRange(lr); } catch {}
       try { osc.timeScale().setVisibleLogicalRange(lr); } catch {}
     };
     main.timeScale().subscribeVisibleLogicalRangeChange(sync);
@@ -779,14 +822,18 @@ export default function ChartPage() {
       if (uiFreezeRef.current) return;
       if (resizeTimer) cancelAnimationFrame(resizeTimer);
       resizeTimer = requestAnimationFrame(() => {
-        if (!mainChart.current || !oscChart.current) return;
+        if (!mainChart.current || !oscChart.current || !volumeChart.current) return;
         mainChart.current.applyOptions({
           width: mainRef.current.clientWidth,
-          height: Math.max(320, Math.floor((window.innerHeight - HEADER_H) * 0.68)),
+          height: Math.max(320, Math.floor((window.innerHeight - HEADER_H) * 0.6)),
+        });
+        volumeChart.current.applyOptions({
+          width: volumeRef.current.clientWidth,
+          height: Math.max(120, Math.floor((window.innerHeight - HEADER_H) * 0.18)),
         });
         oscChart.current.applyOptions({
           width: oscRef.current.clientWidth,
-          height: Math.max(200, Math.floor((window.innerHeight - HEADER_H) * 0.32) - 8),
+          height: Math.max(180, Math.floor((window.innerHeight - HEADER_H) * 0.22) - 8),
         });
         setRedrawTick(t => t + 1);
       });
@@ -799,7 +846,7 @@ export default function ChartPage() {
       try { main.timeScale().unsubscribeVisibleTimeRangeChange(onNeedMore); } catch {}
       window.removeEventListener("resize", handleResize);
     };
-  // NOTE: avoid rebuilding on every candles merge; don't include `candles`
+// NOTE: avoid rebuilding on every candles merge; don't include `candles`
   }, [symbol, tf, chartType, applySeriesData, loadMoreLeft, tfSec]);
 
   /* ---------------- Fetch candles ---------------- */
@@ -1031,7 +1078,7 @@ export default function ChartPage() {
       {drawerOpen && (
         <div className="absolute left-11 top-0 bg-white/95 border rounded-xl shadow-xl p-2 w-[260px]">
           <div className="mb-2">
-            <div className="px-2 pb-1 text-[11px] uppercase tracking-wide text-gray-500">Lines</div>
+            <div className="px-2 pb-1 text=[11px] uppercase tracking-wide text-gray-500">Lines</div>
             {DRAW_TOOLS[0].items.map((it) => {
               const Icon = it.icon || LineChart;
               const activeCls = activeTool === it.key ? "bg-blue-50 border-blue-200" : "hover:bg-gray-50";
@@ -1408,7 +1455,6 @@ export default function ChartPage() {
             position: "absolute",
             inset: 0,
             zIndex: 10,
-            // Let the chart receive mouse/touch for pan/scroll when not drawing
             pointerEvents: activeTool ? "auto" : "none",
             cursor: activeTool ? "crosshair" : "default",
             transition: "opacity 120ms ease"
@@ -1423,6 +1469,11 @@ export default function ChartPage() {
             Loading older candles…
           </div>
         )}
+      </div>
+
+      {/* Volume pane (separate) */}
+      <div className="mt-2 border-t">
+        <div ref={volumeRef} style={{ width: "100%" }} />
       </div>
 
       {/* Osc pane */}
