@@ -420,6 +420,7 @@ const CHART_GROUPS = [
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const dist = (x1,y1,x2,y2) => Math.hypot(x2-x1, y2-y1);
+
 /* basic distance from a point to a segment */
 function pointToSegDist(px, py, x1, y1, x2, y2) {
   const A = px - x1, B = py - y1, C = x2 - x1, D = y2 - y1;
@@ -430,6 +431,20 @@ function pointToSegDist(px, py, x1, y1, x2, y2) {
   const xx = x1 + C * t;
   const yy = y1 + D * t;
   return Math.hypot(px - xx, py - yy);
+}
+
+/* ---------- IST helpers ---------- */
+const IST_OFFSET_SEC = 5.5 * 3600;
+function fmtISTFromUnixSec(sec, withDate=false) {
+  if (typeof sec !== "number" || !isFinite(sec)) return "";
+  const d = new Date((sec + IST_OFFSET_SEC) * 1000);
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  if (!withDate) return `${hh}:${mm}`;
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mon = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mon} ${hh}:${mm}`;
 }
 
 export default function ChartPage() {
@@ -517,6 +532,11 @@ export default function ChartPage() {
   const [tbPos, setTbPos] = useState({ x: 0, y: 0 });
   const [toolbarOpen, setToolbarOpen] = useState(false);
 
+  // freeze UI while toolbar is used (prevents dropdowns from auto closing)
+  const uiFreezeRef = useRef(false);
+  const freezeUI = () => { uiFreezeRef.current = true; };
+  const unfreezeUI = () => { uiFreezeRef.current = false; };
+
   const defaultStyle = { color: "#1d9bf0", width: 2, dash: "solid" };
 
   useEffect(() => {
@@ -544,6 +564,7 @@ export default function ChartPage() {
   /* ---------- incremental load helpers (LEFT scroll) ---------- */
   const earliestRef = useRef(null);
   const loadingMoreRef = useRef(false);
+  const [isFetchingOlder, setIsFetchingOlder] = useState(false);
 
   const applySeriesData = useCallback((t, rows) => {
     const dataToUse = mapDataForType(t, rows);
@@ -555,10 +576,19 @@ export default function ChartPage() {
     volSeries.current?.setData(dataToUse.map(d => ({ time: d.time, value: d.volume ?? 0 })));
   }, []);
 
-  const buildMoreUrl = useCallback((oldest) => {
-    // If your backend uses ?to= instead of ?before=, replace the param name here.
-    return `${API}/market/ohlc?symbol=${encodeURIComponent(symbol)}&interval=${tf}&limit=500&before=${oldest}`;
-  }, [API, symbol, tf]);
+  const tryFetchOlder = useCallback(async (oldest) => {
+    const qs = [
+      `before=${oldest}`,
+      `to=${oldest}`,
+      `end=${oldest}`
+    ];
+    for (const q of qs) {
+      const url = `${API}/market/ohlc?symbol=${encodeURIComponent(symbol)}&interval=${tf}&limit=500&${q}`;
+      const r = await fetch(url);
+      if (r.ok) return r.json();
+    }
+    throw new Error("older fetch failed");
+  }, [symbol, tf]);
 
   const loadMoreLeft = useCallback(async () => {
     if (loadingMoreRef.current) return;
@@ -567,29 +597,41 @@ export default function ChartPage() {
 
     try {
       loadingMoreRef.current = true;
-      const url = buildMoreUrl(oldest);
-      const r = await fetch(url);
-      if (!r.ok) throw new Error("more fetch failed");
-      const older = await r.json();
+      setIsFetchingOlder(true);
+
+      const chart = mainChart.current;
+      const ts = chart?.timeScale();
+      const logicalRangeBefore = ts?.getVisibleLogicalRange();
+
+      const older = await tryFetchOlder(oldest - 1);
 
       if (Array.isArray(older) && older.length) {
-        // Merge, de-dup by time, sort asc
         const mergedMap = new Map();
         [...older, ...candles].forEach(c => mergedMap.set(c.time, c));
         const merged = Array.from(mergedMap.values()).sort((a,b)=>a.time-b.time);
         setCandles(merged);
         earliestRef.current = merged[0]?.time ?? earliestRef.current;
 
-        // Refresh series immediately
         const t = chartType.type;
         applySeriesData(t, merged);
+
+        // keep the viewport stable by shifting logical range by bars added
+        if (logicalRangeBefore && typeof logicalRangeBefore.from === "number" && typeof logicalRangeBefore.to === "number") {
+          const barsAdded = older.length;
+          const newRange = {
+            from: logicalRangeBefore.from + barsAdded,
+            to: logicalRangeBefore.to + barsAdded,
+          };
+          requestAnimationFrame(() => ts?.setVisibleLogicalRange(newRange));
+        }
       }
-    } catch (e) {
-      // silent background fail is fine
+    } catch {
+      // ignore fetch errors (no more data etc.)
     } finally {
       loadingMoreRef.current = false;
+      setIsFetchingOlder(false);
     }
-  }, [candles, chartType.type, applySeriesData, buildMoreUrl]);
+  }, [candles, chartType.type, applySeriesData, tryFetchOlder]);
 
   /* ---------------- Build charts ---------------- */
   useEffect(() => {
@@ -603,9 +645,25 @@ export default function ChartPage() {
       grid: { vertLines: { color: "rgba(42,46,57,0.1)" }, horzLines: { color: "rgba(42,46,57,0.1)" } },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: false,
+        tickMarkFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t) : "",
+        rightOffset: 5,
+        barSpacing: 7,
+        // left-scroll friendliness
+        fixLeftEdge: false,
+        allowShiftVisibleRangeOnWhitespaceReplacement: true,
+        shiftVisibleRangeOnNewBar: true,
+        minimumVisibleBarCount: 5,
+        visible: true,
+      },
       handleScroll: { mouseWheel: true, pressedMouseMove: true },
       handleScale:  { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true } },
+      localization: {
+        timeFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t, true) : "",
+      },
     });
 
     let series;
@@ -655,6 +713,8 @@ export default function ChartPage() {
 
     if (Array.isArray(candles) && candles.length) {
       applySeriesData(t, candles);
+      // small negative scroll keeps a little whitespace to the right
+      requestAnimationFrame(() => main.timeScale().scrollToPosition(-10, false));
     }
 
     const osc = createChart(oscRef.current, {
@@ -663,11 +723,20 @@ export default function ChartPage() {
       layout: { textColor: "#222", background: { type: "Solid", color: "#ffffff" } },
       grid: { vertLines: { color: "rgba(42,46,57,0.1)" }, horzLines: { color: "rgba(42,46,57,0.1)" } },
       rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: false,
+        tickMarkFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t) : "",
+      },
       crosshair: { mode: CrosshairMode.Normal },
+      localization: {
+        timeFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t, true) : "",
+      },
     });
     oscChart.current = osc;
 
+    // keep panes in sync
     const sync = () => {
       const lr = main.timeScale().getVisibleLogicalRange();
       if (!lr || lr.from == null || lr.to == null) return;
@@ -675,38 +744,63 @@ export default function ChartPage() {
     };
     main.timeScale().subscribeVisibleLogicalRangeChange(sync);
 
-    // 👉 lazy-load older candles when user scrolls near left edge
+    // robust "need more bars" detector
     const onNeedMore = () => {
-      const lr = main.timeScale().getVisibleLogicalRange();
-      if (!lr) return;
-      try {
-        const info = priceSeries.current?.barsInLogicalRange(lr);
-        if (info && typeof info.barsBefore === "number" && info.barsBefore < 5) {
-          loadMoreLeft();
-        }
-      } catch {}
-    };
-    main.timeScale().subscribeVisibleLogicalRangeChange(onNeedMore);
+      const ts = main.timeScale();
+      const lr = ts.getVisibleLogicalRange();
+      if (!lr || !priceSeries.current) return;
 
+      try {
+        const info = priceSeries.current.barsInLogicalRange(lr);
+        const leftEdgeTime = ts.coordinateToTime(0);
+
+        // normal path
+        if (info && typeof info.barsBefore === "number") {
+          if (info.barsBefore < 20) loadMoreLeft();
+          return;
+        }
+
+        // fallback: if left screen edge already at/before first candle time
+        const first = earliestRef.current;
+        if (typeof leftEdgeTime === "number" && typeof first === "number") {
+          if (leftEdgeTime <= first + tfSec) loadMoreLeft();
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    main.timeScale().subscribeVisibleLogicalRangeChange(onNeedMore);
+    main.timeScale().subscribeVisibleTimeRangeChange(onNeedMore);
+
+    // debounced resize that respects toolbar freeze
+    let resizeTimer = null;
     const handleResize = () => {
-      if (!mainChart.current || !oscChart.current) return;
-      mainChart.current.applyOptions({
-        width: mainRef.current.clientWidth,
-        height: Math.max(320, Math.floor((window.innerHeight - HEADER_H) * 0.68)),
+      if (uiFreezeRef.current) return;
+      if (resizeTimer) cancelAnimationFrame(resizeTimer);
+      resizeTimer = requestAnimationFrame(() => {
+        if (!mainChart.current || !oscChart.current) return;
+        mainChart.current.applyOptions({
+          width: mainRef.current.clientWidth,
+          height: Math.max(320, Math.floor((window.innerHeight - HEADER_H) * 0.68)),
+        });
+        oscChart.current.applyOptions({
+          width: oscRef.current.clientWidth,
+          height: Math.max(200, Math.floor((window.innerHeight - HEADER_H) * 0.32) - 8),
+        });
+        setRedrawTick(t => t + 1);
       });
-      oscChart.current.applyOptions({
-        width: oscRef.current.clientWidth,
-        height: Math.max(200, Math.floor((window.innerHeight - HEADER_H) * 0.32) - 8),
-      });
-      setRedrawTick(t => t + 1);
     };
     window.addEventListener("resize", handleResize);
+
     return () => {
       try { main.timeScale().unsubscribeVisibleLogicalRangeChange(sync); } catch {}
       try { main.timeScale().unsubscribeVisibleLogicalRangeChange(onNeedMore); } catch {}
+      try { main.timeScale().unsubscribeVisibleTimeRangeChange(onNeedMore); } catch {}
       window.removeEventListener("resize", handleResize);
     };
-  }, [symbol, tf, chartType, candles, applySeriesData, loadMoreLeft]);
+  // NOTE: avoid rebuilding on every candles merge; don't include `candles`
+  }, [symbol, tf, chartType, applySeriesData, loadMoreLeft, tfSec]);
 
   /* ---------------- Fetch candles ---------------- */
   useEffect(() => {
@@ -727,6 +821,8 @@ export default function ChartPage() {
           applySeriesData(t, rows);
           setLastPrice(rows[rows.length - 1]?.close ?? null);
           earliestRef.current = rows[0]?.time ?? null;
+          // give some right whitespace
+          requestAnimationFrame(() => mainChart.current?.timeScale()?.scrollToPosition(-10, false));
           setStatus("live");
         };
 
@@ -748,7 +844,7 @@ export default function ChartPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [API, symbol, tf, tfSec, chartType, applySeriesData]);
+  }, [symbol, tf, tfSec, chartType, applySeriesData]);
 
   /* ---------------- Overlay drawing helpers ---------------- */
   const pickTool = (key) => {
@@ -764,18 +860,34 @@ export default function ChartPage() {
     const x = clamp(evt.clientX - rect.left, 0, rect.width);
     const y = clamp(evt.clientY - rect.top,  0, rect.height);
 
-    const time = mainChart.current.timeScale().coordinateToTime(x);
-    const price = priceSeries.current.coordinateToPrice(y);
-
-    return { time: time ?? null, price: price ?? null, px: { x, y } };
+    const ts = mainChart.current.timeScale();
+    let time = null;
+    try {
+      const maybe = ts.coordinateToTime(x);
+      if (typeof maybe === "number") time = maybe;
+    } catch {}
+    let price = null;
+    try {
+      const ps = priceSeries.current.coordinateToPrice(y);
+      if (typeof ps === "number" && isFinite(ps)) price = ps;
+    } catch {}
+    return { time, price, px: { x, y } };
   }, []);
 
+  // SAFE ensureXY: never call timeToCoordinate / priceToCoordinate with null/undefined
   const ensureXY = (pt) => {
     const chart = mainChart.current;
     const series = priceSeries.current;
     if (!chart || !series) return pt.px ? { x: pt.px.x, y: pt.px.y } : null;
-    const x = chart.timeScale().timeToCoordinate(pt.time);
-    const y = series.priceToCoordinate(pt.price);
+
+    let x = null;
+    if (pt && typeof pt.time === "number") {
+      try { x = chart.timeScale().timeToCoordinate(pt.time); } catch {}
+    }
+    let y = null;
+    if (pt && typeof pt.price === "number") {
+      try { y = series.priceToCoordinate(pt.price); } catch {}
+    }
     if (x == null || y == null) return pt.px ? { x: pt.px.x, y: pt.px.y } : null;
     return { x, y };
   };
@@ -988,8 +1100,14 @@ export default function ChartPage() {
     const w = overlayRef.current.clientWidth || 0;
     const h = overlayRef.current.clientHeight || 0;
 
-    const timeToX = (t) => (chart && t != null) ? chart.timeScale().timeToCoordinate(t) : null;
-    const priceToY = (p) => (series && p != null) ? series.priceToCoordinate(p) : null;
+    const timeToXSafe = (t) => {
+      if (!chart || typeof t !== "number") return null;
+      try { return chart.timeScale().timeToCoordinate(t); } catch { return null; }
+    };
+    const priceToYSafe = (p) => {
+      if (!series || typeof p !== "number") return null;
+      try { return series.priceToCoordinate(p); } catch { return null; }
+    };
 
     const addLine = (x1, y1, x2, y2, style, dashed=false) => {
       let dashArr = "0";
@@ -1004,8 +1122,8 @@ export default function ChartPage() {
 
     const items = [];
     const ensureXYLocal = (pt) => {
-      const x = timeToX(pt.time);
-      const y = priceToY(pt.price);
+      const x = timeToXSafe(pt.time);
+      const y = priceToYSafe(pt.price);
       if (x == null || y == null) return pt.px ? { x: pt.px.x, y: pt.px.y } : null;
       return { x, y };
     };
@@ -1235,6 +1353,8 @@ export default function ChartPage() {
         className="fixed z-[9994] bg-white/95 border rounded-xl shadow-lg px-2 py-1 flex items-center gap-2"
         style={{ left: tbPos.x, top: tbPos.y }}
         onMouseDown={(e)=>e.stopPropagation()}
+        onMouseEnter={freezeUI}
+        onMouseLeave={unfreezeUI}
       >
         <input type="color" value={style.color} onChange={onColor} className="w-8 h-8 p-0 border rounded" title="Color" />
         <select value={style.width} onChange={onWidth} className="text-xs border rounded px-2 py-1" title="Stroke width">
@@ -1284,11 +1404,25 @@ export default function ChartPage() {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          /* ⬇️ Allow zoom/scroll/pan when not drawing; capture only during drawing */
-          style={{ position: "absolute", inset: 0, zIndex: 10, pointerEvents: activeTool ? "auto" : "none", cursor: activeTool ? "crosshair" : "default" }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 10,
+            // Let the chart receive mouse/touch for pan/scroll when not drawing
+            pointerEvents: activeTool ? "auto" : "none",
+            cursor: activeTool ? "crosshair" : "default",
+            transition: "opacity 120ms ease"
+          }}
         >
           <OverlaySVG key={redrawTick} />
         </div>
+
+        {/* spinner while older data loads */}
+        {isFetchingOlder && (
+          <div className="absolute left-2 top-2 z-[9995] bg-white/90 border rounded-md px-2 py-1 text-xs shadow">
+            Loading older candles…
+          </div>
+        )}
       </div>
 
       {/* Osc pane */}
