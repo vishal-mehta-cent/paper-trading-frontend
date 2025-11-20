@@ -53,21 +53,27 @@
   border: 1px solid #ccc;
 }
 
+/* -------- Signal Section Layout -------- */
 .signals-section {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 60px; /* spacing between Active and Closed blocks */
+  gap: 40px;
   flex-wrap: wrap;
   margin-top: 20px;
 }
 
-
-.signals-column {
-  flex: 0 0 340px; /* fixed width for both columns */
-  text-align: center;
+.left-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
 }
 
+.signals-column {
+  flex: 0 0 320px;
+  text-align: center;
+}
 
 .subtext {
   font-size: 12px;
@@ -77,163 +83,79 @@
 .signal-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 15px;  /* equal spacing between cards */
+  gap: 15px;
   justify-items: center;
   align-items: center;
   margin-top: 10px;
 }
 
-
-.signal-card {
-  background-color: #66b3ff;
-  color: white;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  width: 140px;
-  height: 140px;
-  font-size: 16px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.signal-card:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-}
-
-.signal-card-chart {
-  background-color: #f5f9ff;
-  border-radius: 12px;
-  width: 250px;
-  height: 220px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-}
-
-.signal-card-chart:hover {
-  transform: scale(1.03);
-}
-
-.card-header,
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 600;
-  color: #222;
-}
-
-.chart-container {
-  flex-grow: 1;
-  margin: 5px 0;
-}
-
-.card-script {
-  color: #2962ff;
-}
-
-.card-confidence {
-  color: #00c853;
-}
-
-/* ---------- ADVANCED SIGNAL CARD STYLE ---------- */
+/* ---------------- Signal Card ---------------- */
 .signal-card-advanced {
   background-color: #f5f9ff;
   border-radius: 12px;
-  width: 320px;
-  height: 260px;
-  padding: 10px 12px;
+  width: 260px;
+  height: auto;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   position: relative;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-height: 230px;
 }
 
 .signal-card-advanced:hover {
-  transform: scale(1.03);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 /* ---------- Header ---------- */
+/* ---------- Header (Make Script Centered) ---------- */
 .signal-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
   align-items: center;
+  width: 100%;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: #222;
 }
 
+/* Left side (time) */
 .signal-time {
+  font-size: 12px;
+  text-align: left;
+  font-size: 12px;
   color: #444;
+}
+
+/* BUY/SELL badge */
+.alert-badge {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Center (script name) */
+.signal-script {
+  text-align: center;
+  color: #2962ff;
+  font-size: 14px;
+  font-weight: 700;
+  display: block;
+  width: 100%;
+}
+
+/* Right side (confidence) */
+.signal-confidence {
+  text-align: right;
+  color: #00c853;
   font-size: 13px;
 }
 
-.signal-script {
-  color: #2962ff;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.signal-confidence {
-  color: #00c853;
-  font-size: 14px;
-}
-
-/* ---------- Chart Section ---------- */
-.chart-wrapper {
-  position: relative;
-  height: 130px;
-  background-color: #d7e3fc;
-  border-radius: 8px;
-  overflow: hidden;
-  margin: 6px 0;
-}
-
-.chart-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  pointer-events: none;
-}
-
-.vertical-label {
-  position: absolute;
-  left: 3px;
-  top: 50%;
-  transform: translateY(-50%) rotate(-90deg);
-  font-size: 11px;
-  color: #222;
-  font-weight: 600;
-}
-
-.horizontal-label {
-  position: absolute;
-  bottom: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  color: #222;
-  font-weight: 600;
-}
-
-.center-label {
-  position: absolute;
-  font-size: 12px;
-  color: white;
-  font-weight: 600;
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
-}
 
 /* ---------- Footer ---------- */
 .signal-footer {
@@ -241,10 +163,374 @@
   color: #111;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  text-align: left;
 }
 
 .signal-footer strong {
   color: #000;
 }
 
+/* Make yellow alert box auto-grow */
+.alert-description-box {
+  background-color: #fff8c4;
+  border: 1px solid #e6d88a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 100%;
+  margin-top: 10px;
+  box-sizing: border-box;
+  min-height: 70px;
+  height: auto !important;
+  /* ⭐ ALLOW EXPANSION */
+  line-height: 1.35;
+  overflow-wrap: break-word;
+  /* ⭐ PREVENT TEXT OVERFLOW */
+}
+
+/* ---------- Legend Box ---------- */
+.legend-box {
+  background-color: #f8faff;
+  border: 1.5px solid #e0e6f0;
+  border-radius: 10px;
+  padding: 15px 20px;
+  min-width: 220px;
+  height: fit-content;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.legend-box h4 {
+  margin: 0 0 8px;
+  color: #2962ff;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.legend-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #222;
+  font-weight: 500;
+}
+
+.legend-line strong {
+  color: #000;
+}
+
+.legend-extra {
+  margin-top: 4px;
+  font-size: 13px;
+  text-align: left;
+  font-weight: 500;
+  color: #111;
+}
+
+/* =========================================================
+   ✅ Clean Line Layout (Only Live Prices Below)
+   ========================================================= */
+/* ======= HORIZONTAL PRICE DIAGRAM STYLING ======= */
+
+/* Clean diagram container */
+.clean-line-layout {
+  background-color: #f5f9ff;
+  border-radius: 12px;
+  width: 340px;
+  height: 200px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+/* Header remains same */
+.clean-line-layout .signal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+}
+
+.signal-script {
+  text-align: center !important;
+  font-size: 15px;
+  font-weight: 700;
+  color: #2962ff;
+}
+
+.signal-confidence {
+  text-align: right !important;
+}
+
+/* ======== Indicator Layout ======== */
+.indicator-container {
+  position: relative;
+  width: 100%;
+  margin: 15px 0;
+  height: 90px;
+}
+
+/* Gray horizontal line */
+.indicator-line {
+  position: absolute;
+  top: 50%;
+  left: 5%;
+  width: 90%;
+  height: 3px;
+  background-color: #bdbdbd;
+  border-radius: 3px;
+  z-index: 1;
+}
+
+/* Dynamic fill (green/red segment) */
+.indicator-fill {
+  position: absolute;
+  top: 50%;
+  height: 5px;
+  /* slightly thicker for visibility */
+  border-radius: 3px;
+  transform: translateY(-50%);
+  z-index: 5;
+  /* ensure it's above gray line */
+  transition: all 0.4s ease;
+  /* smooth animation */
+}
+
+.marker {
+  position: absolute;
+  top: 45%;
+  /* moves shapes slightly UP */
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 15;
+}
+
+
+/* === LABELS ABOVE THE LINE (SUP, ST, T, RES) === */
+.label-top {
+  position: absolute;
+  top: -22px;
+  /* ABOVE the line */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #000;
+
+}
+
+/* === LIVE PRICES BELOW THE LINE === */
+.label-bottom {
+  position: absolute;
+  top: 22px;
+  /* BELOW the line */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: #000;
+  white-space: nowrap;
+  background: transparent;
+}
+
+/* === SHAPES (ALL BLACK) === */
+.shape.square {
+  width: 14px;
+  height: 14px;
+  background-color: #000;
+  border-radius: 2px;
+}
+
+.shape.line {
+  width: 2px;
+  height: 22px;
+  background-color: #000;
+}
+
+/* Circle = Signal Price */
+.shape.circle {
+  width: 8px;
+  height: 8px;
+  background-color: #000;
+  border-radius: 50%;
+}
+
+/* === Current price triangle (always black) === */
+.shape.triangle {
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 12px solid #000;
+  /* Always black */
+  transition: left 0.4s ease;
+  z-index: 6;
+}
+
+/* Price label */
+.label-bottom {
+  margin-top: 5px;
+  font-size: 11px;
+  color: #000;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+
+/* === Hover effect (optional) === */
+.clean-line-layout:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.legend-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 15px 0;
+}
+
+.legend-box {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  padding: 12px 20px;
+  font-size: 14px;
+  text-align: left;
+  min-width: 240px;
+}
+
+.signals-columns {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px;
+  width: 100%;
+}
+
+/* =========================================================
+   PRICE BUBBLES (Signal Price & Live Price)
+   ========================================================= */
+/* -------- SMALL TRADINGVIEW STYLE BUBBLES -------- */
+.price-bubble {
+  position: absolute;
+  top: 5px;
+  /* PERFECT distance above marker */
+  left: 50%;
+  transform: translateX(-50%);
+
+  padding: 1px 1px;
+  /* small bubble */
+  background: #ffffff;
+  border-radius: 3px;
+  border: 1px solid #cfcfcf;
+
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.0;
+  white-space: nowrap;
+
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+}
+
+.price-bubble-live {
+  background: #f6fbff;
+  border-color: #9bbfff;
+}
+
+/* =========================================================
+   FINAL MOBILE FIX — FORCE EVERYTHING INTO ONE COLUMN
+   ========================================================= */
+@media (max-width: 768px) {
+
+  /* Force Active + Closed Signals to stack vertically */
+  .signals-columns {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 25px !important;
+    align-items: center !important;
+  }
+
+  /* Inside each section, signals should be 1 column */
+  .signal-grid {
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    justify-items: center !important;
+  }
+
+  .signals-column {
+    width: 100% !important;
+    max-width: 430px !important;
+    /* Card fits perfectly */
+    margin: 0 auto !important;
+  }
+
+  /* Adjust signal card size for mobile */
+  .clean-line-layout {
+    width: 92% !important;
+    max-width: 370px !important;
+    height: 155px !important;
+  }
+}
+
+/* Closed Signals Wrapper */
+.closed-card-wrapper {
+  border: 2px solid;
+  border-radius: 12px;
+  padding: 6px;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto 15px auto;
+  background: white;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Closed card badge (PROFIT / LOSS) */
+.closed-badge {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  z-index: 100;
+}
+
+/* MOBILE FIXES for closed cards */
+@media (max-width: 768px) {
+  .closed-card-wrapper {
+    max-width: 92% !important;
+    padding: 5px !important;
+  }
+
+  .closed-badge {
+    font-size: 10px !important;
+    top: 4px !important;
+    right: 8px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .closed-card-wrapper {
+    max-width: 92% !important;
+    padding: 4px !important;
+    border-radius: 10px !important;
+  }
+
+  .closed-badge {
+    font-size: 9px !important;
+    top: 3px !important;
+    right: 6px !important;
+  }
+}
